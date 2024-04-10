@@ -12,4 +12,5 @@ serde = { version = "1.0.197", features = ["derive"] }
 clap = "4.5.4"
 clap_derive = "4.5.4"
 walkdir = "2.5.0"
-pelite = "0.10.0"
+thiserror = "1.0.58"
+anyhow = "1.0.81"
