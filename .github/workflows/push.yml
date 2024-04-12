@@ -30,6 +30,7 @@ jobs:
         run: |
           rustup toolchain install stable-x86_64-pc-windows-gnu
           rustup target add x86_64-pc-windows-gnu
+          rustup update
 
       - name: Install Cargo dependencies
         run: cargo update
