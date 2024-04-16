@@ -1,28 +1,29 @@
 use std::fs::File;
-use std::io::{Cursor, Read, Seek};
-use std::path::Path;
+use std::io::{BufReader, Cursor, Read, Seek, SeekFrom, Write};
+use std::path::{Path, PathBuf};
 
+use binrw::{BinRead, binrw, BinWrite};
 use clap::Parser;
-use clap_derive::Parser;
+use clap_derive::{Parser, Subcommand, ValueEnum};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use walkdir::WalkDir;
 
 use crate::read_ext::ReadExt;
+use crate::sub::{AssetMetadata, pack, patch, unpack};
+use crate::unity::AssetsFile;
 
 mod crypto;
 mod read_ext;
-
-const KEY_OFFSET: usize = 0x39420;
-
-#[derive(Debug, Eq, PartialEq, Serialize, Deserialize)]
-struct Asset {
-    name: String,
-    size: usize,
-}
+mod sub;
+mod unity;
 
 #[derive(Debug, Parser)]
+#[command(version, about = "Cli tool to work with Paper, please data files", long_about = None)]
 struct Args {
+    #[command(subcommand)]
+    command: Command,
+
     #[arg(short, long, default_value = "Art.dat")]
     input: String,
 
@@ -36,29 +37,100 @@ struct Args {
     key: Option<String>,
 }
 
-fn main() {
-    let mut args = Args::parse();
-    let file = Path::new(args.input.as_str());
+#[derive(Debug, Parser)]
+#[command(version, about = "Cli tool to work with Paper, please data files", long_about = None)]
+struct NewArgs {
+    /// Subcommand to run
+    #[command(subcommand)]
+    command: Command,
 
-    if args.key.is_none() {
-        let res = extract_key(&args);
+    /// Path to the Papers, Please game directory
+    #[arg(short, long)]
+    game: PathBuf,
+
+    /// Optional encryption key to use for Art.dat. If none is provided it will be extracted from the global-metadata.dat file.
+    #[arg(short, long)]
+    art_key: Option<String>,
+
+}
+
+#[derive(Debug, Subcommand)]
+enum Command {
+    /// Pack assets into an Art.dat or unity asset bundle.
+    Pack {
+        /// Input file. If none is provided, the tool will check for a "assets" and "out" directory in the current working directory.
+        #[arg(short, long)]
+        input: Option<PathBuf>,
+
+        /// Output file. Can either be a Art.dat file or a unity asset bundle. Make sure to either use the .dat or .assets extension.
+        #[arg(short, long, default_value = "Art-modded.dat")]
+        output: PathBuf,
+
+        /// How should the tool handle localized assets.
+        #[arg(long, default_value = "None")]
+        i18n: I18nCompatMode,
+    },
+    /// Unpack assets from an Art.dat or unity asset bundle.
+    Unpack {
+        /// Input file. Can either be a Art.dat file or a unity asset bundle. Make sure to either use the .dat or .assets extension.
+        #[arg(short, long)]
+        input: PathBuf,
+
+        /// Output directory.
+        #[arg(short, long, default_value = "./out")]
+        output: PathBuf,
+    },
+    /// Patch an Art.dat or unity asset bundle with new/replaced assets from a directory.
+    Patch {
+        /// Directory containing assets to insert/replace.
+        #[arg(short, long)]
+        patch: PathBuf,
+
+        /// How should the tool handle localized assets.
+        #[arg(long, default_value = "None")]
+        i18n: I18nCompatMode,
+    },
+}
+
+#[derive(Debug, Clone, ValueEnum)]
+enum I18nCompatMode {
+    /// Everything is packed into the Art.dat file. Localized assets are ignored.
+    None,
+    /// All i18n zip files get the same localized assets.
+    Normal,
+    /// The tool finds the delta between localized assets and overlays them onto the packed assets.
+    Smart,
+}
+
+
+fn main() {
+    let mut args = NewArgs::parse();
+    println!("papers-tools v{} by {}", env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_AUTHORS"));
+    if args.art_key.is_none() {
+        let res = crypto::extract_key(&args);
         if let Err(err) = res {
             eprintln!("Failed to extract key: {}", err);
             return;
         }
-        args.key = Some(res.unwrap());
+        args.art_key = Some(res.unwrap());
     }
 
-    if file.is_file() {
-        let res = extract(args);
-        if let Err(err) = res {
-            eprintln!("Failed to extract assets: {}", err);
+    let res = match &args.command {
+        Command::Pack { input, output, i18n } => {
+            pack::pack(&args, input, output, i18n)
         }
-    } else {
-        let res = pack(args);
-        if let Err(err) = res {
-            eprintln!("Failed to pack assets: {}", err);
+        Command::Unpack { input, output } => {
+            unpack::unpack(&args, input, output)
         }
+        Command::Patch { patch, i18n } => {
+            // patch::patch(&args, patch, i18n)
+            Ok(())
+        }
+    };
+
+    if let Err(err) = res {
+        eprintln!("An error occurred while running the command:");
+        eprintln!("{err}");
     }
 }
 
@@ -68,109 +140,4 @@ enum KeyExtractError {
     GameDirNotFound(String),
     #[error("Global metadata file does not exist: {0}")]
     GlobalMetadataNotFound(String),
-}
-
-fn extract_key(args: &Args) -> anyhow::Result<String> {
-    let game_dir = Path::new(&args.game);
-    if !game_dir.exists() || !game_dir.is_dir() {
-        return Err(KeyExtractError::GameDirNotFound(game_dir.display().to_string()).into());
-    }
-    let global_metadata = game_dir.join("PapersPlease_Data")
-        .join("il2cpp_data")
-        .join("Metadata")
-        .join("global-metadata.dat");
-
-    if !global_metadata.exists() {
-        return Err(KeyExtractError::GlobalMetadataNotFound(global_metadata.display().to_string()).into());
-    }
-
-    let mut file = File::open(global_metadata)?;
-    file.seek(std::io::SeekFrom::Start(KEY_OFFSET as u64))?;
-    let mut key = [0; 16];
-    file.read_exact(&mut key)?;
-    let key = String::from_utf8(key.to_vec())?;
-    println!("Extracted decryption key from global metadata: {}", key);
-
-    Ok(key)
-}
-
-fn extract(args: Args) -> anyhow::Result<()> {
-    let mut data = std::fs::read(&args.input)?;
-    println!("Extracting assets from: {}", args.input);
-
-    let key = args.key.unwrap();
-    let enc_key = crypto::to_key_array(key.as_str());
-    let enc_key = enc_key.as_slice();
-    crypto::decrypt(enc_key, data.as_mut_slice());
-
-    let mut cursor = Cursor::new(data);
-    let str = cursor.read_string();
-
-    let assets = haxeformat::from_str::<Vec<Asset>>(str.as_str())?;
-
-    let output = args.output.unwrap_or("./out".to_string());
-    std::fs::create_dir_all(&output)?;
-    let abs_output = Path::new(output.as_str()).canonicalize()?;
-    for asset in assets {
-        println!("Extracting asset: {} ({} bytes)", asset.name, asset.size);
-        let mut asset_bytes = vec![0; asset.size];
-        cursor.read_exact(asset_bytes.as_mut_slice())?;
-
-        let path = abs_output.join(&asset.name);
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).unwrap();
-            if !parent.canonicalize().unwrap().starts_with(&abs_output) {
-                eprintln!("Skipping asset: {} (Tried escaping output directory)", asset.name);
-                continue;
-            }
-        }
-        std::fs::write(path, asset_bytes)?;
-    }
-
-    Ok(())
-}
-
-fn pack(args: Args) -> anyhow::Result<()> {
-    let input = Path::new(&args.input);
-    let output = args.output.unwrap_or("Art-modded.dat".to_string());
-    println!("Packing assets from: {} to: {}", input.display(), output);
-
-    let mut assets: Vec<Asset> = Vec::new();
-    let mut asset_bytes: Vec<u8> = Vec::new();
-    for file in WalkDir::new(input) {
-        let file = file.unwrap();
-        if file.file_type().is_dir() {
-            continue;
-        }
-
-        let path = file.path();
-        let name = path.strip_prefix(input)?.to_str()
-            .ok_or_else(|| anyhow::anyhow!("Failed to convert path to string"))?
-            .to_string();
-        let size = path.metadata()?.len() as usize;
-
-        println!("Packing asset: {} ({} bytes)", name, size);
-        assets.push(Asset { name, size });
-
-        asset_bytes.extend_from_slice(&std::fs::read(path)?);
-    }
-
-    let header = haxeformat::to_string(&assets)?;
-    let mut header = header.into_bytes();
-    let mut out = Vec::new();
-    out.extend_from_slice((header.len() as u16).to_le_bytes().as_ref());
-    out.append(&mut header);
-    out.append(&mut asset_bytes);
-
-    println!("Encrypting assets...");
-    let key = args.key.unwrap();
-    let enc_key = crypto::to_key_array(key.as_str());
-    let enc_key = enc_key.as_slice();
-    crypto::encrypt(enc_key, out.as_mut_slice());
-
-    println!("Packing assets to: {}...", output);
-    std::fs::write(output, out)?;
-
-    println!("Done! You can now use a tool like UABE to replace the Art.dat file in sharedassets0.assets");
-    Ok(())
 }

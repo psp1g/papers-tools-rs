@@ -1,4 +1,10 @@
 use std::slice;
+use std::path::Path;
+use std::fs::File;
+use std::io::{Read, Seek};
+use crate::{KeyExtractError, NewArgs};
+
+const KEY_OFFSET: usize = 0x39420;
 
 pub fn to_key_array(key: &str) -> Vec<u32> {
     md5::compute(key)
@@ -61,4 +67,28 @@ pub fn decrypt(key: &[u32], block: &mut [u8]) {
 
 fn as_u32_slice_mut(x: &mut [u8]) -> &mut [u32] {
     unsafe { slice::from_raw_parts_mut(x.as_mut_ptr() as *mut u32, x.len() / 4) }
+}
+
+pub fn extract_key(args: &NewArgs) -> anyhow::Result<String> {
+    let game_dir = Path::new(&args.game);
+    if !game_dir.exists() || !game_dir.is_dir() {
+        return Err(KeyExtractError::GameDirNotFound(game_dir.display().to_string()).into());
+    }
+    let global_metadata = game_dir.join("PapersPlease_Data")
+        .join("il2cpp_data")
+        .join("Metadata")
+        .join("global-metadata.dat");
+
+    if !global_metadata.exists() {
+        return Err(KeyExtractError::GlobalMetadataNotFound(global_metadata.display().to_string()).into());
+    }
+
+    let mut file = File::open(global_metadata)?;
+    file.seek(std::io::SeekFrom::Start(KEY_OFFSET as u64))?;
+    let mut key = [0; 16];
+    file.read_exact(&mut key)?;
+    let key = String::from_utf8(key.to_vec())?;
+    println!("Extracted Art.dat decryption key from global metadata: {}", key);
+
+    Ok(key)
 }
