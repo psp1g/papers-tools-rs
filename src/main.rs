@@ -4,7 +4,7 @@ use clap::Parser;
 use clap_derive::{Parser, Subcommand, ValueEnum};
 use thiserror::Error;
 
-use crate::command::{pack, patch, unpack};
+use crate::command::{pack, unpack};
 
 mod crypto;
 mod read_ext;
@@ -31,7 +31,7 @@ struct Args {
 }
 
 #[derive(Debug, Parser)]
-#[command(version, about = "Cli tool to work with Paper, please data files", long_about = None)]
+#[command(version, about = "Cli tool to work with Papers, Please data files", long_about = None)]
 struct NewArgs {
     /// Subcommand to run
     #[command(subcommand)]
@@ -49,13 +49,13 @@ struct NewArgs {
 
 #[derive(Debug, Subcommand)]
 enum Command {
-    /// Pack assets into an Art.dat or unity asset bundle.
+    /// Pack assets into an Art.dat (For asset bundles, use the patch command)
     Pack {
         /// Input file. If none is provided, the tool will check for a "assets" and "out" directory in the current working directory.
         #[arg(short, long)]
         input: Option<PathBuf>,
 
-        /// Output file. Can either be a Art.dat file or a unity asset bundle. Make sure to either use the .dat or .assets extension.
+        /// Output file. Make sure to use the .dat or .txt extension.
         #[arg(short, long, default_value = "Art-modded.dat")]
         output: PathBuf,
 
