@@ -39,14 +39,14 @@ impl AssetsFile {
 #[brw(big)]
 #[derive(Debug, PartialEq)]
 pub struct AssetFileHeader {
-    pub _unknown: u64,
+    #[br(assert(version == 22))]
+    #[brw(pad_before = 8, pad_after = 4)]
     pub version: u32,
-    pub _padding: u32,
     pub metadata_size: u64,
     pub file_size: u64,
     pub offset_first_file: u64,
+    #[brw(pad_after = 7)]
     pub endianness: Endian,
-    pub _unknown2: [u8; 7],
 }
 
 #[binrw]
