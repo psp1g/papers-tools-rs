@@ -15,7 +15,7 @@ pub fn unpack(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::Resu
     let extension = input.extension();
     match extension {
         Some(ext) => {
-            if ext == OsStr::new("dat") {
+            if ext == OsStr::new("dat") || ext ==  OsStr::new("txt") {
                 unpack_dat(args, input, output)
             } else if ext == OsStr::new("assets") {
                 unpack_assets(args, input, output)
@@ -100,10 +100,11 @@ pub fn unpack_assets(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyho
                     .map_err(|e| anyhow::anyhow!("Failed to create temporary file: {}", e))?;
                 let mut temp_writer = BufWriter::new(temp_writer);
 
-                // skip 5 unknown bytes
-                input.seek(SeekFrom::Current(5))
+                // skip field index byte
+                input.seek(SeekFrom::Current(1))
                     .map_err(|e| anyhow::anyhow!("Failed to seek to object data: {}", e))?;
-                let to_copy = obj.byte_size - (u32::BITS / 8 + name.len() as u32 + 5);
+                let to_copy = input.read_u32_order(&assets.header.endianness)
+                    .map_err(|e| anyhow::anyhow!("Failed to read asset length: {}", e))?;
                 let mut temp_reader = input.by_ref().take(to_copy as u64);
 
                 std::io::copy(&mut temp_reader, &mut temp_writer)

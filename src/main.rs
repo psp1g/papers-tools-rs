@@ -1,14 +1,10 @@
-use std::io::{Read, Seek, Write};
 use std::path::PathBuf;
 
-use binrw::{BinRead, binrw, BinWrite};
 use clap::Parser;
 use clap_derive::{Parser, Subcommand, ValueEnum};
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::command::{pack, unpack};
-use crate::read_ext::ReadExt;
+use crate::command::{pack, patch, unpack};
 
 mod crypto;
 mod read_ext;

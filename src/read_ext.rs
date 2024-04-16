@@ -7,6 +7,8 @@ use crate::unity::util::Endian;
 pub trait ReadExt {
     fn read_string(&mut self, len: usize) -> anyhow::Result<String>;
 
+    fn read_u32_order(&mut self, endian: &Endian) -> anyhow::Result<u32>;
+
     fn read_size<T: ByteOrder>(&mut self, size_bits: u32) -> anyhow::Result<usize>;
 
     fn read_dyn_string(&mut self, endian: &Endian, size_bits: u32) -> anyhow::Result<String>;
@@ -19,6 +21,13 @@ impl<R: Read + ?Sized> ReadExt for R {
             .map_err(|e| anyhow::anyhow!("Failed to read string: {}", e))?;
         String::from_utf8(buf)
             .map_err(|e| anyhow::anyhow!("Failed to convert string to utf8: {}", e))
+    }
+
+    fn read_u32_order(&mut self, endian: &Endian) -> anyhow::Result<u32> {
+        match endian {
+            Endian::Little => self.read_u32::<LittleEndian>(),
+            Endian::Big => self.read_u32::<BigEndian>(),
+        }.map_err(|e| anyhow::anyhow!("Failed to read u32: {}", e))
     }
 
     fn read_size<T: ByteOrder>(&mut self, size_bits: u32) -> anyhow::Result<usize> {
