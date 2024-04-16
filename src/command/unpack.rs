@@ -8,7 +8,7 @@ use binrw::io::BufReader;
 
 use crate::{crypto, NewArgs};
 use crate::read_ext::ReadExt;
-use crate::sub::ArtHeader;
+use crate::command::ArtHeader;
 use crate::unity::AssetsFile;
 
 pub fn unpack(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::Result<()> {

@@ -6,7 +6,7 @@ use walkdir::WalkDir;
 use zip::ZipArchive;
 
 use crate::{crypto, I18nCompatMode, NewArgs};
-use crate::sub::AssetMetadata;
+use crate::command::AssetMetadata;
 
 pub fn pack(args: &NewArgs, input: &Option<PathBuf>, output: &PathBuf, locale_mode: &I18nCompatMode) -> anyhow::Result<()> {
     let input = find_input(input);

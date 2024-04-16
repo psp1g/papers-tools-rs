@@ -10,12 +10,12 @@ use thiserror::Error;
 use walkdir::WalkDir;
 
 use crate::read_ext::ReadExt;
-use crate::sub::{AssetMetadata, pack, patch, unpack};
+use crate::command::{AssetMetadata, pack, patch, unpack};
 use crate::unity::AssetsFile;
 
 mod crypto;
 mod read_ext;
-mod sub;
+mod command;
 mod unity;
 
 #[derive(Debug, Parser)]
