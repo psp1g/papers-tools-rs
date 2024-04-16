@@ -1,17 +1,14 @@
-use std::fs::File;
-use std::io::{BufReader, Cursor, Read, Seek, SeekFrom, Write};
-use std::path::{Path, PathBuf};
+use std::io::{Read, Seek, Write};
+use std::path::PathBuf;
 
 use binrw::{BinRead, binrw, BinWrite};
 use clap::Parser;
 use clap_derive::{Parser, Subcommand, ValueEnum};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use walkdir::WalkDir;
 
+use crate::command::{pack, unpack};
 use crate::read_ext::ReadExt;
-use crate::command::{AssetMetadata, pack, patch, unpack};
-use crate::unity::AssetsFile;
 
 mod crypto;
 mod read_ext;

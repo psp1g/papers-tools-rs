@@ -1,7 +1,8 @@
-use std::slice;
-use std::path::Path;
 use std::fs::File;
 use std::io::{Read, Seek};
+use std::path::Path;
+use std::slice;
+
 use crate::{KeyExtractError, NewArgs};
 
 const KEY_OFFSET: usize = 0x39420;
