@@ -1,0 +1,87 @@
+name: PSP Papers Tools
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_PROFILE_DEV_DEBUG: 0
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  RUSTFLAGS: "-D warnings"
+  RUSTUP_MAX_RETRIES: 10
+
+jobs:
+
+  build:
+
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        run: rustup toolchain install stable
+
+      - name: Install Cargo dependencies
+        run: cargo update
+
+      - name: Build
+        run: cargo build --release
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: PapersTools
+          path: ./target/release/papers-tools.exe
+
+  create_release:
+
+    permissions:
+      contents: write
+
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && (contains(github.event.head_commit.message, '(release):') || contains(github.event.head_commit.message, '(pre-release):'))
+
+    steps:
+      - name: Get release version
+        run: |
+          COMMIT_MESSAGE="${{ github.event.head_commit.message }}"
+          RELEASE_NAME=$(echo "$COMMIT_MESSAGE" | sed -E 's/.*\((release|pre-release)\):\s*//')
+          echo "RELEASE_NAME=$RELEASE_NAME" >> $GITHUB_ENV
+
+      - name: Determine if pre-release
+        run: |
+          echo "IS_PRE_RELEASE=$(echo "${{ github.event.head_commit.message }}" | grep -q "(pre-release):" && echo true || echo false)" >> $GITHUB_ENV
+
+      - name: Print RELEASE_NAME
+        run: |
+          echo "RELEASE_NAME=${{ env.RELEASE_NAME }}"
+          echo "IS_PRE_RELEASE=${{ env.IS_PRE_RELEASE }}"
+
+      - name: Download Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: PapersTools
+
+      - name: Rename Artifact
+        run: |
+          mv papers-tools.exe PapersTools-win-x64.exe
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ env.RELEASE_NAME }}
+          files: PapersTools-win-x64.exe
+#         body: Release desc
+          draft: false
+          prerelease: ${{ env.IS_PRE_RELEASE }}
