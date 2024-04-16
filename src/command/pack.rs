@@ -1,9 +1,7 @@
 use std::ffi::OsStr;
-use std::fs::File;
 use std::path::PathBuf;
 
 use walkdir::WalkDir;
-use zip::ZipArchive;
 
 use crate::{crypto, I18nCompatMode, NewArgs};
 use crate::command::AssetMetadata;
@@ -24,7 +22,7 @@ pub fn pack(args: &NewArgs, input: &Option<PathBuf>, output: &PathBuf, locale_mo
             }
         }
         None => {
-            anyhow::bail!("Output file has no extension. (Use .dat or .assets)");
+            anyhow::bail!("Output file has no extension. (Use .dat or .txt)");
         }
     }
 }
@@ -63,7 +61,7 @@ fn find_input(input: &Option<PathBuf>) -> anyhow::Result<PathBuf> {
     }
 }
 
-fn pack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf, locale_mode: &I18nCompatMode) -> anyhow::Result<()> {
+fn pack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf, _locale_mode: &I18nCompatMode) -> anyhow::Result<()> {
     let mut assets: Vec<AssetMetadata> = Vec::new();
     let mut asset_bytes: Vec<u8> = Vec::new();
 
@@ -112,31 +110,31 @@ fn pack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf, locale_mode: &I18
     Ok(())
 }
 
-fn find_localized_assets(game_dir: &PathBuf) -> anyhow::Result<Vec<String>> {
-    let english_loc = game_dir
-        .join("PapersPlease_Data")
-        .join("StreamingAssets")
-        .join("loc")
-        .join("en.zip");
-
-    if !english_loc.exists() {
-        anyhow::bail!("English localization not found at: {}", english_loc.display());
-    }
-    let mut assets: Vec<String> = Vec::new();
-    let zip_handle = File::open(english_loc)?;
-    let mut zip = ZipArchive::new(zip_handle)?;
-    for i in 0..zip.len() {
-        let file = zip.by_index(i)?;
-        if file.is_dir() {
-            continue;
-        }
-
-        // TODO: bail or skip?
-        assets.push(format!("assets/{}", file
-            .enclosed_name().ok_or_else(|| anyhow::anyhow!("Failed to get zip entry name"))?
-            .to_str().ok_or_else(|| anyhow::anyhow!("Failed to convert file name to string"))?
-        ));
-    }
-
-    Ok(assets)
-}
+// fn find_localized_assets(game_dir: &PathBuf) -> anyhow::Result<Vec<String>> {
+//     let english_loc = game_dir
+//         .join("PapersPlease_Data")
+//         .join("StreamingAssets")
+//         .join("loc")
+//         .join("en.zip");
+//
+//     if !english_loc.exists() {
+//         anyhow::bail!("English localization not found at: {}", english_loc.display());
+//     }
+//     let mut assets: Vec<String> = Vec::new();
+//     let zip_handle = File::open(english_loc)?;
+//     let mut zip = ZipArchive::new(zip_handle)?;
+//     for i in 0..zip.len() {
+//         let file = zip.by_index(i)?;
+//         if file.is_dir() {
+//             continue;
+//         }
+//
+//         // TODO: bail or skip?
+//         assets.push(format!("assets/{}", file
+//             .enclosed_name().ok_or_else(|| anyhow::anyhow!("Failed to get zip entry name"))?
+//             .to_str().ok_or_else(|| anyhow::anyhow!("Failed to convert file name to string"))?
+//         ));
+//     }
+//
+//     Ok(assets)
+// }
