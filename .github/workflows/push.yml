@@ -29,6 +29,9 @@ jobs:
       - name: Install Rust toolchain
         run: rustup toolchain install stable
 
+      - name: Install mold
+        uses: rui314/setup-mold@v1
+
       - name: Install Cargo dependencies
         run: cargo update
 
