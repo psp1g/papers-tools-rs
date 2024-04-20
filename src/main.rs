@@ -2,9 +2,8 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use clap_derive::{Parser, Subcommand, ValueEnum};
-use thiserror::Error;
 
-use crate::command::{pack, unpack};
+use crate::command::{pack, patch, unpack};
 
 mod crypto;
 mod read_ext;
@@ -116,8 +115,7 @@ fn main() {
             unpack::unpack(&args, input, output)
         }
         Command::Patch { patch, i18n } => {
-            // patch::patch(&args, patch, i18n)
-            Ok(())
+            patch::patch(&args, patch, i18n)
         }
     };
 
@@ -125,12 +123,4 @@ fn main() {
         eprintln!("An error occurred while running the command:");
         eprintln!("{err}");
     }
-}
-
-#[derive(Debug, Error)]
-enum KeyExtractError {
-    #[error("Game directory does not exist: {0}")]
-    GameDirNotFound(String),
-    #[error("Global metadata file does not exist: {0}")]
-    GlobalMetadataNotFound(String),
 }

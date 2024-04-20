@@ -3,7 +3,7 @@ use std::io::{Read, Seek};
 use std::path::Path;
 use std::slice;
 
-use crate::{KeyExtractError, NewArgs};
+use crate::{NewArgs};
 
 const KEY_OFFSET: usize = 0x39420;
 
@@ -73,7 +73,7 @@ fn as_u32_slice_mut(x: &mut [u8]) -> &mut [u32] {
 pub fn extract_key(args: &NewArgs) -> anyhow::Result<String> {
     let game_dir = Path::new(&args.game);
     if !game_dir.exists() || !game_dir.is_dir() {
-        return Err(KeyExtractError::GameDirNotFound(game_dir.display().to_string()).into());
+        anyhow::bail!("Game directory not found: {}", game_dir.display());
     }
     let global_metadata = game_dir.join("PapersPlease_Data")
         .join("il2cpp_data")
@@ -81,7 +81,7 @@ pub fn extract_key(args: &NewArgs) -> anyhow::Result<String> {
         .join("global-metadata.dat");
 
     if !global_metadata.exists() {
-        return Err(KeyExtractError::GlobalMetadataNotFound(global_metadata.display().to_string()).into());
+        anyhow::bail!("Global metadata file not found: {}", global_metadata.display());
     }
 
     let mut file = File::open(global_metadata)?;

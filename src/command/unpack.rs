@@ -2,6 +2,7 @@ use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{BufWriter, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use anyhow::Context;
 
 use binrw::BinRead;
 use binrw::io::BufReader;
@@ -31,7 +32,7 @@ pub fn unpack(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::Resu
 
 pub fn unpack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::Result<()> {
     let mut data = std::fs::read(input)
-        .map_err(|e| anyhow::anyhow!("Failed to read input file: {}", e))?;
+        .context("Failed to read input file")?;
     println!("Unpacking assets from: {}", input.display());
 
     // key can be unwrapped safely here
@@ -43,10 +44,10 @@ pub fn unpack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::
     // Read header string
     let len = u16::from_le_bytes([data[0], data[1]]) as usize;
     let header = String::from_utf8(data[2..len + 2].to_vec())
-        .map_err(|e| anyhow::anyhow!("Failed to read header string: {}", e))?;
+        .context("Failed to read header string")?;
 
     let assets = haxeformat::from_str::<ArtHeader>(header.as_str())
-        .map_err(|e| anyhow::anyhow!("Failed to parse header string: {}", e))?;
+        .context("Failed to parse header string")?;
 
     // Create output directory
     std::fs::create_dir_all(&output)?;
@@ -69,7 +70,7 @@ pub fn unpack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::
         }
 
         std::fs::write(path, asset_bytes)
-            .map_err(|e| anyhow::anyhow!("Failed to write asset {} to file: {}", asset.name, e))?;
+            .context(format!("Failed to write asset {} to file", asset.name))?;
     }
 
     Ok(())
@@ -77,38 +78,39 @@ pub fn unpack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::
 
 pub fn unpack_assets(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::Result<()> {
     let input = File::open(input)
-        .map_err(|e| anyhow::anyhow!("Failed to open input file: {}", e))?;
+        .context("Failed to open input file")?;
     let mut input = BufReader::new(input);
     let assets = AssetsFile::read(&mut input)
-        .map_err(|e| anyhow::anyhow!("Failed to read assets file: {}", e))?;
+        .context("Failed to read assets file")?;
     let objects = assets.resolve_object_classes()
-        .map_err(|e| anyhow::anyhow!("Failed to resolve object classes: {}", e))?;
+        .context("Failed to resolve object classes")?;
 
     let mut art_file: Option<PathBuf> = None;
     for obj in objects {
         if obj.class_id == 49 { // text asset
             input.seek(SeekFrom::Start(assets.header.offset_first_file + obj.byte_start))
-                .map_err(|e| anyhow::anyhow!("Failed to seek to object: {}", e))?;
+                .context("Failed to seek to object")?;
             let name = input.read_dyn_string(&assets.header.endianness, i32::BITS)
-                .map_err(|e| anyhow::anyhow!("Failed to read object name: {}", e))?;
+                .context("Failed to read object name")?;
 
             if name == "Art.dat" {
                 let temp = PathBuf::from("./temp-art.dat");
                 println!("Found Art.dat in unity assets. Temporarily saving to: {}", temp.display());
 
                 let temp_writer = File::create(&temp)
-                    .map_err(|e| anyhow::anyhow!("Failed to create temporary file: {}", e))?;
+                    .context("Failed to create temporary file")?;
                 let mut temp_writer = BufWriter::new(temp_writer);
 
                 // skip field index byte
                 input.seek(SeekFrom::Current(1))
-                    .map_err(|e| anyhow::anyhow!("Failed to seek to object data: {}", e))?;
+                    .context("Failed to seek to object data")?;
                 let to_copy = input.read_u32_order(&assets.header.endianness)
-                    .map_err(|e| anyhow::anyhow!("Failed to read asset length: {}", e))?;
+                    .context("Failed to read asset length")?;
                 let mut temp_reader = input.by_ref().take(to_copy as u64);
 
                 std::io::copy(&mut temp_reader, &mut temp_writer)
-                    .map_err(|e| anyhow::anyhow!("Failed to copy object data: {}", e))?;
+                    .context("Failed to copy object data")?;
+                
                 art_file = Some(temp);
                 break;
             }

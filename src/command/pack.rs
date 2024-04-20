@@ -1,5 +1,6 @@
 use std::ffi::OsStr;
 use std::path::PathBuf;
+use anyhow::Context;
 
 use walkdir::WalkDir;
 
@@ -81,7 +82,7 @@ fn pack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf, _locale_mode: &I1
 
         let path = file.path();
         let name = path.strip_prefix(input)?.to_str()
-            .ok_or_else(|| anyhow::anyhow!("Failed to convert path to string"))?
+            .context("Failed to convert path to string")?
             .to_string();
         let size = path.metadata()?.len() as usize;
 
