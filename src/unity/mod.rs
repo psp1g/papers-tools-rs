@@ -94,7 +94,7 @@ pub struct SerializedType {
 #[derive(Debug, PartialEq)]
 pub struct ScriptType {
     local_serialized_file_index: i32,
-    #[br(align_before(4))]
+    #[brw(align_before(4))]
     local_identifier_in_file: i64,
 }
 
@@ -110,7 +110,7 @@ pub struct FileIdentifier {
 #[binrw]
 #[derive(Debug, PartialEq)]
 pub struct ObjectInfo {
-    #[br(align_before(4))]
+    #[brw(align_before(4))]
     pub path_id: i64,
     pub byte_start: u64,
     pub byte_size: u32,

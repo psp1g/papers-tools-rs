@@ -1,15 +1,15 @@
-pub mod assets_patcher;
-pub mod xml_patcher;
-
 use std::env::temp_dir;
 use std::path::PathBuf;
-use anyhow::Context;
 
+use anyhow::Context;
 use rand::random;
 
 use crate::{I18nCompatMode, NewArgs};
 use crate::command::patch::assets_patcher::patch_assets;
 use crate::command::unpack;
+
+pub mod assets_patcher;
+pub mod xml_patcher;
 
 pub fn patch(args: &NewArgs, patch: &PathBuf, locale_mode: &I18nCompatMode) -> anyhow::Result<()> {
     println!("Patching assets with {:?} with locale mode {:?}", patch, locale_mode);
@@ -26,9 +26,9 @@ pub fn patch(args: &NewArgs, patch: &PathBuf, locale_mode: &I18nCompatMode) -> a
     std::fs::create_dir_all(&temp_unpacked)
         .context("Failed to create temp directory")?;
 
-    unpack::unpack_assets(args, &game_files.assets, &temp_unpacked)?;
+    let repack_info = unpack::unpack_assets(args, &game_files.assets, &temp_unpacked)?;
 
-    patch_assets(patch, &temp_unpacked, &temp_dir)?;
+    patch_assets(patch, &temp_unpacked, &temp_dir, repack_info)?;
 
     Ok(())
 }
@@ -82,6 +82,7 @@ fn prepare_file(game_dir: &PathBuf, name: &str) -> anyhow::Result<PathBuf> {
 
 fn create_temp_dir() -> PathBuf {
     let mut temp_dir = temp_dir();
+    temp_dir.push("papers-tools");
     temp_dir.push(format!("papers_please_assets_{}", random::<u64>()));
     temp_dir
 }
