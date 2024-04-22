@@ -1,13 +1,13 @@
 use std::ffi::OsStr;
 use std::path::PathBuf;
-use anyhow::Context;
 
+use anyhow::Context;
 use walkdir::WalkDir;
 
-use crate::{crypto, I18nCompatMode, NewArgs};
 use crate::command::AssetMetadata;
+use crate::crypto;
 
-pub fn pack(args: &NewArgs, input: &Option<PathBuf>, output: &PathBuf, locale_mode: &I18nCompatMode) -> anyhow::Result<()> {
+pub fn pack(art_key: &String, input: &Option<PathBuf>, output: &PathBuf) -> anyhow::Result<()> {
     let input = find_input(input);
     if let Err(e) = input {
         anyhow::bail!("Error while finding input: {}", e);
@@ -17,7 +17,7 @@ pub fn pack(args: &NewArgs, input: &Option<PathBuf>, output: &PathBuf, locale_mo
     match extension {
         Some(ext) => {
             if ext == OsStr::new("dat") || ext == OsStr::new("txt") {
-                pack_dat(args, &input.unwrap(), output, locale_mode)
+                pack_dat(art_key, &input.unwrap(), output)
             } else {
                 anyhow::bail!("Output file has an invalid extension. (Use .dat or .txt)");
             }
@@ -62,7 +62,7 @@ fn find_input(input: &Option<PathBuf>) -> anyhow::Result<PathBuf> {
     }
 }
 
-fn pack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf, _locale_mode: &I18nCompatMode) -> anyhow::Result<()> {
+fn pack_dat(art_key: &String, input: &PathBuf, output: &PathBuf) -> anyhow::Result<()> {
     let mut assets: Vec<AssetMetadata> = Vec::new();
     let mut asset_bytes: Vec<u8> = Vec::new();
 
@@ -100,7 +100,7 @@ fn pack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf, _locale_mode: &I1
     out.append(&mut asset_bytes);
 
     println!("Encrypting assets...");
-    let key = args.art_key.clone().unwrap();
+    let key = art_key.clone();
     let enc_key = crypto::to_key_array(key.as_str());
     let enc_key = enc_key.as_slice();
     crypto::encrypt(enc_key, out.as_mut_slice());

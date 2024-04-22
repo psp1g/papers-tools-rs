@@ -6,7 +6,7 @@ use clap_derive::{Parser, Subcommand, ValueEnum};
 use crate::command::{pack, patch, unpack};
 
 mod crypto;
-mod read_ext;
+mod io_ext;
 mod command;
 mod unity;
 
@@ -57,10 +57,6 @@ enum Command {
         /// Output file. Make sure to use the .dat or .txt extension.
         #[arg(short, long, default_value = "Art-modded.dat")]
         output: PathBuf,
-
-        /// How should the tool handle localized assets.
-        #[arg(long, default_value = "none")]
-        i18n: I18nCompatMode,
     },
     /// Unpack assets from an Art.dat or unity asset bundle.
     Unpack {
@@ -108,8 +104,9 @@ fn main() {
     }
 
     let res = match &args.command {
-        Command::Pack { input, output, i18n } => {
-            pack::pack(&args, input, output, i18n)
+        Command::Pack { input, output } => {
+            // unwrap is safe here
+            pack::pack(&args.art_key.unwrap(), input, output)
         }
         Command::Unpack { input, output } => {
             unpack::unpack(&args, input, output)

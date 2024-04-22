@@ -9,7 +9,7 @@ use binrw::io::BufReader;
 
 use crate::{crypto, NewArgs};
 use crate::command::ArtHeader;
-use crate::read_ext::ReadExt;
+use crate::io_ext::ReadExt;
 use crate::unity::AssetsFile;
 
 pub fn unpack(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::Result<()> {
@@ -17,9 +17,9 @@ pub fn unpack(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::Resu
     match extension {
         Some(ext) => {
             if ext == OsStr::new("dat") || ext ==  OsStr::new("txt") {
-                unpack_dat(args, input, output)
+                unpack_dat(args, input, output)?;
             } else if ext == OsStr::new("assets") {
-                unpack_assets(args, input, output)
+                unpack_assets(args, input, output)?;
             } else {
                 anyhow::bail!("Input file has an invalid extension. (Supported: .dat, .assets)");
             }
@@ -28,6 +28,8 @@ pub fn unpack(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::Resu
             anyhow::bail!("Input file has no extension. (Supported: .dat, .assets)");
         }
     }
+
+    Ok(())
 }
 
 pub fn unpack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::Result<()> {
@@ -38,8 +40,8 @@ pub fn unpack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::
     // key can be unwrapped safely here
     let key = args.art_key.clone().unwrap();
     let enc_key = crypto::to_key_array(key.as_str());
-    let enc_key = enc_key.as_slice();
-    crypto::decrypt(enc_key, data.as_mut_slice());
+    let enc_key_slice = enc_key.as_slice();
+    crypto::decrypt(enc_key_slice, data.as_mut_slice());
 
     // Read header string
     let len = u16::from_le_bytes([data[0], data[1]]) as usize;
@@ -76,8 +78,15 @@ pub fn unpack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::
     Ok(())
 }
 
-pub fn unpack_assets(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::Result<()> {
-    let input = File::open(input)
+pub struct RepackInfo {
+    pub assets: AssetsFile,
+    pub art_path_id: i64,
+    pub art_key: String,
+    pub original_assets: PathBuf,
+}
+
+pub fn unpack_assets(args: &NewArgs, input_path: &PathBuf, output: &PathBuf) -> anyhow::Result<RepackInfo> {
+    let input = File::open(input_path)
         .context("Failed to open input file")?;
     let mut input = BufReader::new(input);
     let assets = AssetsFile::read(&mut input)
@@ -86,11 +95,12 @@ pub fn unpack_assets(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyho
         .context("Failed to resolve object classes")?;
 
     let mut art_file: Option<PathBuf> = None;
+    let mut art_path_id: Option<i64> = None;
     for obj in objects {
         if obj.class_id == 49 { // text asset
             input.seek(SeekFrom::Start(assets.header.offset_first_file + obj.byte_start))
                 .context("Failed to seek to object")?;
-            let name = input.read_dyn_string(&assets.header.endianness, i32::BITS)
+            let name = input.read_dyn_string(&assets.header.endianness)
                 .context("Failed to read object name")?;
 
             if name == "Art.dat" {
@@ -110,8 +120,9 @@ pub fn unpack_assets(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyho
 
                 std::io::copy(&mut temp_reader, &mut temp_writer)
                     .context("Failed to copy object data")?;
-                
+
                 art_file = Some(temp);
+                art_path_id = Some(obj.path_id);
                 break;
             }
         }
@@ -123,9 +134,14 @@ pub fn unpack_assets(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyho
         if let Err(e) = std::fs::remove_file(art_file) {
             eprintln!("Failed to remove temporary file: {}", e);
         }
+        // Any unwraps here are safe because None values would've resulted in earlier bail
+        Ok(RepackInfo {
+            assets,
+            art_path_id: art_path_id.unwrap(),
+            art_key: args.art_key.clone().unwrap(),
+            original_assets: input_path.clone(),
+        })
     } else {
         anyhow::bail!("Failed to find Art.dat object in assets file");
     }
-
-    Ok(())
 }

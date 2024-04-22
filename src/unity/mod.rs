@@ -9,7 +9,7 @@ pub mod util;
 #[derive(Debug, PartialEq)]
 pub struct AssetsFile {
     #[brw(big)]
-    pub header: AssetFileHeader,
+    pub header: AssetsFileHeader,
     #[brw(is_little = header.endianness == Endian::Little)]
     pub content: AssetsFileContent,
 }
@@ -38,7 +38,7 @@ impl AssetsFile {
 #[binrw]
 #[brw(big)]
 #[derive(Debug, PartialEq)]
-pub struct AssetFileHeader {
+pub struct AssetsFileHeader {
     #[br(assert(version == 22))]
     #[brw(pad_before = 8, pad_after = 4)]
     pub version: u32,
