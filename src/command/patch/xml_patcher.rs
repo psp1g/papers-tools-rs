@@ -27,8 +27,8 @@ pub fn patch(original: &Path, patch: &PathBuf, output: &PathBuf) -> anyhow::Resu
         merge_to(&mut writer, first, &mut patch_index)
             .with_context(|| format!("Failed to patch {} with {}", original.display(), patch.display()))?;
     }
-
-    unimplemented!()
+    
+    Ok(())
 }
 
 type NodeIndex<'doc, 'input> = HashMap<String, HashMap<String, Node<'doc, 'input>>>;

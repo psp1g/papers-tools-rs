@@ -18,18 +18,19 @@ pub fn patch(args: &NewArgs, patch: &PathBuf, locale_mode: &I18nCompatMode) -> a
         anyhow::bail!("Patch directory {:?} does not exist", patch);
     }
 
-    let game_files = prepare_game_files(&patch)?;
+    let game_files = prepare_game_files(&args.game)?;
 
     let temp_dir = create_temp_dir();
+    println!("Using temp directory: {}", temp_dir.display());
     let temp_unpacked = temp_dir.join("unpacked");
     std::fs::create_dir_all(&temp_unpacked)
         .context("Failed to create temp directory")?;
 
-    unpack::unpack_dat(args, &game_files.assets, &temp_unpacked)?;
+    unpack::unpack_assets(args, &game_files.assets, &temp_unpacked)?;
 
     patch_assets(patch, &temp_unpacked, &temp_dir)?;
 
-    unimplemented!()
+    Ok(())
 }
 
 
@@ -41,13 +42,20 @@ pub struct GameFiles {
 }
 
 fn prepare_game_files(game_dir: &PathBuf) -> anyhow::Result<GameFiles> {
+    // if game_dir is not already PapersPlease_Data, append it
+    let game_dir = if game_dir.ends_with("PapersPlease_Data") {
+        game_dir.clone()
+    } else {
+        game_dir.join("PapersPlease_Data")
+    };
+
     if !game_dir.is_dir() {
         anyhow::bail!("Game directory {:?} does not exist", game_dir);
     }
 
-    let assets = prepare_file(game_dir, "sharedassets0.assets")?;
-    let resources = prepare_file(game_dir, "sharedassets0.resource")?;
-    let locale = prepare_file(game_dir, "StreamingAssets/loc/en.zip")?;
+    let assets = prepare_file(&game_dir, "sharedassets0.assets")?;
+    let resources = prepare_file(&game_dir, "sharedassets0.resource")?;
+    let locale = prepare_file(&game_dir, "StreamingAssets/loc/en.zip")?;
 
     Ok(GameFiles { assets, resources, locale })
 }

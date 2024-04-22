@@ -59,7 +59,7 @@ enum Command {
         output: PathBuf,
 
         /// How should the tool handle localized assets.
-        #[arg(long, default_value = "None")]
+        #[arg(long, default_value = "none")]
         i18n: I18nCompatMode,
     },
     /// Unpack assets from an Art.dat or unity asset bundle.
@@ -79,7 +79,7 @@ enum Command {
         patch: PathBuf,
 
         /// How should the tool handle localized assets.
-        #[arg(long, default_value = "None")]
+        #[arg(long, default_value = "none")]
         i18n: I18nCompatMode,
     },
 }
