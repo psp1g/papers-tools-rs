@@ -1,7 +1,7 @@
-use std::io::Read;
+use std::io::{Read, Write};
 use anyhow::Context;
 
-use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt};
+use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use crate::unity::util::Endian;
 
@@ -12,7 +12,7 @@ pub trait ReadExt {
 
     fn read_size<T: ByteOrder>(&mut self, size_bits: u32) -> anyhow::Result<usize>;
 
-    fn read_dyn_string(&mut self, endian: &Endian, size_bits: u32) -> anyhow::Result<String>;
+    fn read_dyn_string(&mut self, endian: &Endian) -> anyhow::Result<String>;
 }
 
 impl<R: Read + ?Sized> ReadExt for R {
@@ -40,12 +40,39 @@ impl<R: Read + ?Sized> ReadExt for R {
         }.context("Failed to read size")
     }
 
-    fn read_dyn_string(&mut self, endian: &Endian, size_bits: u32) -> anyhow::Result<String> {
+    fn read_dyn_string(&mut self, endian: &Endian) -> anyhow::Result<String> {
         let size = match endian {
-            Endian::Little => self.read_size::<LittleEndian>(size_bits),
-            Endian::Big => self.read_size::<BigEndian>(size_bits),
-        }?;
+            Endian::Little => self.read_u32::<LittleEndian>(),
+            Endian::Big => self.read_u32::<BigEndian>(),
+        }? as usize;
 
         self.read_string(size)
+    }
+}
+
+pub trait WriteExt {
+
+    fn write_u32_order(&mut self, endian: &Endian, val: u32) -> anyhow::Result<()>;
+
+    fn write_dyn_string(&mut self, s: &str, endian: &Endian) -> anyhow::Result<()>;
+
+}
+
+impl<W: Write + ?Sized> WriteExt for W {
+    fn write_u32_order(&mut self, endian: &Endian, val: u32) -> anyhow::Result<()> {
+        match endian {
+            Endian::Little => self.write_u32::<LittleEndian>(val),
+            Endian::Big => self.write_u32::<BigEndian>(val),
+        }.context("Failed to write u32")
+    }
+
+    fn write_dyn_string(&mut self, s: &str, endian: &Endian) -> anyhow::Result<()> {
+        let size = s.len() as u32;
+        match endian {
+            Endian::Little => self.write_u32::<LittleEndian>(size),
+            Endian::Big => self.write_u32::<BigEndian>(size),
+        }?;
+        self.write_all(s.as_bytes())
+            .context("Failed to write string")
     }
 }
