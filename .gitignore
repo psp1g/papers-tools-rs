@@ -15,3 +15,7 @@ Cargo.lock
 /.idea
 /out
 *.dat
+
+/patch
+*.assets
+*.resource
