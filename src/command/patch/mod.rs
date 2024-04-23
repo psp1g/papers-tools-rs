@@ -18,7 +18,7 @@ pub fn patch(args: &NewArgs, patch: &PathBuf, locale_mode: &I18nCompatMode) -> a
         anyhow::bail!("Patch directory {:?} does not exist", patch);
     }
 
-    let game_files = prepare_game_files(&args.game)?;
+    let game_files = prepare_game_files(&args.game_dir)?;
 
     let temp_dir = create_temp_dir();
     println!("Using temp directory: {}", temp_dir.display());

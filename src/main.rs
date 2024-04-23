@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use clap::Parser;
 use clap_derive::{Parser, Subcommand, ValueEnum};
 
-use crate::command::{pack, patch, unpack};
+use crate::command::{pack, patch, revert, unpack};
 
 mod crypto;
 mod io_ext;
@@ -38,7 +38,7 @@ struct NewArgs {
 
     /// Path to the Papers, Please game directory
     #[arg(short, long)]
-    game: PathBuf,
+    game_dir: PathBuf,
 
     /// Optional encryption key to use for Art.dat. If none is provided it will be extracted from the global-metadata.dat file.
     #[arg(short, long)]
@@ -50,7 +50,7 @@ struct NewArgs {
 enum Command {
     /// Pack assets into an Art.dat (For asset bundles, use the patch command)
     Pack {
-        /// Input file. If none is provided, the tool will check for a "assets" and "out" directory in the current working directory.
+        /// Input file. If none is provided, the tool will check for an "assets" and "out" directory in the current working directory.
         #[arg(short, long)]
         input: Option<PathBuf>,
 
@@ -60,7 +60,7 @@ enum Command {
     },
     /// Unpack assets from an Art.dat or unity asset bundle.
     Unpack {
-        /// Input file. Can either be a Art.dat file or a unity asset bundle. Make sure to either use the .dat or .assets extension.
+        /// Input file. Can either be an Art.dat file or a unity asset bundle. Make sure to either use the .dat or .assets extension.
         #[arg(short, long)]
         input: PathBuf,
 
@@ -78,6 +78,19 @@ enum Command {
         #[arg(long, default_value = "none")]
         i18n: I18nCompatMode,
     },
+    /// Reverts the game files to their original state.
+    Revert,
+}
+
+impl Command {
+
+    fn needs_key(&self) -> bool {
+        match self {
+            Command::Revert => false,
+            _ => true,
+        }
+    }
+
 }
 
 #[derive(Debug, Clone, ValueEnum)]
@@ -92,7 +105,7 @@ enum I18nCompatMode {
 fn main() {
     let mut args = NewArgs::parse();
     println!("papers-tools v{} by {}", env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_AUTHORS"));
-    if args.art_key.is_none() {
+    if args.art_key.is_none() && args.command.needs_key() {
         let res = crypto::extract_key(&args);
         if let Err(err) = res {
             eprintln!("Failed to extract key: {}", err);
@@ -111,6 +124,9 @@ fn main() {
         }
         Command::Patch { patch, i18n } => {
             patch::patch(&args, patch, i18n)
+        }
+        Command::Revert => {
+            revert::revert(&args.game_dir)
         }
     };
 

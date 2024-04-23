@@ -71,7 +71,7 @@ fn as_u32_slice_mut(x: &mut [u8]) -> &mut [u32] {
 }
 
 pub fn extract_key(args: &NewArgs) -> anyhow::Result<String> {
-    let game_dir = Path::new(&args.game);
+    let game_dir = Path::new(&args.game_dir);
     if !game_dir.exists() || !game_dir.is_dir() {
         anyhow::bail!("Game directory not found: {}", game_dir.display());
     }
