@@ -155,6 +155,12 @@ fn pack_to_assets(temp_dir: &PathBuf, patched: &PathBuf, repack: RepackInfo) -> 
             new_object.byte_size = obj.byte_size;
         }
         current_offset += new_object.byte_size as u64;
+
+        // When writing the object data, the start of object data is always aligned to 8 bytes, and
+        // the end of object data is always aligned to 4 bytes (These pad after bytes are included
+        // in the object's byte size). However, if the distance to the next 8 byte alignment is the
+        // same as the distance to the next 4 byte alignment, the padding bytes are not included in
+        // the object's byte size.
         if current_offset % 8 != 0 {
             let padding = 8 - (current_offset % 8);
             if padding > 4 {
