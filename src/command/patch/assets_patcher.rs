@@ -143,10 +143,6 @@ fn pack_to_assets(temp_dir: &PathBuf, patched: &PathBuf, repack: RepackInfo) -> 
     let mut objects = Vec::new();
     let mut current_offset = 0;
     for obj in &assets.content.objects {
-        if current_offset % 4 != 0 {
-            current_offset += 4 - (current_offset % 4);
-        }
-
         let mut new_object = ObjectInfo {
             path_id: obj.path_id,
             byte_start: current_offset,
@@ -159,6 +155,14 @@ fn pack_to_assets(temp_dir: &PathBuf, patched: &PathBuf, repack: RepackInfo) -> 
             new_object.byte_size = obj.byte_size;
         }
         current_offset += new_object.byte_size as u64;
+        if current_offset % 8 != 0 {
+            let padding = 8 - (current_offset % 8);
+            if padding > 4 {
+                new_object.byte_size += (padding % 4) as u32;
+            }
+            current_offset += padding;
+        }
+
         objects.push(new_object);
     }
     header.file_size = header.offset_first_file + current_offset;
@@ -179,7 +183,6 @@ fn pack_to_assets(temp_dir: &PathBuf, patched: &PathBuf, repack: RepackInfo) -> 
         .context("Failed to open original assets file")?);
     let original_file_offset = &assets.header.offset_first_file;
     for (obj, old_obj) in new_assets.content.objects.iter().zip(assets.content.objects) {
-
         let pos = writer.stream_position()
             .context("Failed to get current position in output file")?;
         if pos != obj.byte_start + original_file_offset {
@@ -208,9 +211,8 @@ fn pack_to_assets(temp_dir: &PathBuf, patched: &PathBuf, repack: RepackInfo) -> 
             std::io::copy(&mut art_file, &mut writer)
                 .context("Failed to copy new art file to assets file")?;
         }
-
     }
 
-    println!("Packed objets to: {}", output.display());
+    println!("Packed objects to: {}", output.display());
     Ok(output)
 }
