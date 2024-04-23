@@ -25,10 +25,9 @@ pub fn patch(args: &NewArgs, patch: &PathBuf, locale_mode: &I18nCompatMode) -> a
     let temp_unpacked = temp_dir.join("unpacked");
     std::fs::create_dir_all(&temp_unpacked)
         .context("Failed to create temp directory")?;
-
     let repack_info = unpack::unpack_assets(args, &game_files.assets, &temp_unpacked)?;
 
-    patch_assets(patch, &temp_unpacked, &temp_dir, repack_info)?;
+    patch_assets(patch, &temp_dir, &game_files.game_dir, repack_info)?;
 
     Ok(())
 }
@@ -36,6 +35,7 @@ pub fn patch(args: &NewArgs, patch: &PathBuf, locale_mode: &I18nCompatMode) -> a
 
 //<editor-fold desc="Filesystem preparations" defaultstate="collapsed">
 pub struct GameFiles {
+    pub game_dir: PathBuf,
     pub assets: PathBuf,
     pub resources: PathBuf,
     pub locale: PathBuf,
@@ -57,7 +57,7 @@ fn prepare_game_files(game_dir: &PathBuf) -> anyhow::Result<GameFiles> {
     let resources = prepare_file(&game_dir, "sharedassets0.resource")?;
     let locale = prepare_file(&game_dir, "StreamingAssets/loc/en.zip")?;
 
-    Ok(GameFiles { assets, resources, locale })
+    Ok(GameFiles { game_dir, assets, resources, locale })
 }
 
 fn prepare_file(game_dir: &PathBuf, name: &str) -> anyhow::Result<PathBuf> {

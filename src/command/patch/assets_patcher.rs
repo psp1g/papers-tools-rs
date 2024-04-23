@@ -26,19 +26,20 @@ const ART_OBJ_HEADER_LEN: u64 = 4 + 7 + 1 + 4;
 
 pub fn patch_assets(
     patch: &PathBuf,
-    unpacked: &PathBuf,
     temp_dir: &PathBuf,
+    game_dir: &PathBuf,
     repack_info: RepackInfo,
-) -> anyhow::Result<PathBuf> {
+) -> anyhow::Result<()> {
     println!("Patching assets..");
     let patched_assets = temp_dir.join("patched");
+    let unpacked = temp_dir.join("unpacked");
     std::fs::create_dir_all(&patched_assets)
         .context("Failed to create patched assets directory")?;
 
     // copy over original files and if they have a patch, apply the patch
-    for file in WalkDir::new(unpacked) {
+    for file in WalkDir::new(&unpacked) {
         let file = file.map_err(|e| anyhow::anyhow!("Failed to walk directory: {}", e))?;
-        let rel_path = file.path().strip_prefix(unpacked)
+        let rel_path = file.path().strip_prefix(&unpacked)
             .context("Failed to strip prefix")?;
         let file_type = file.file_type();
 
@@ -103,7 +104,7 @@ pub fn patch_assets(
         }
     }
 
-    pack_to_assets(temp_dir, &patched_assets, repack_info)
+    pack_to_assets(temp_dir, &game_dir, repack_info)
 }
 
 /// Copies a file from one of the input directories to the patched assets directory and makes sure
@@ -127,8 +128,9 @@ fn patch_xml(original: &Path, patch_file: &PathBuf, rel_path: &Path, patched_ass
     xml_patcher::patch(original, patch_file, &output)
 }
 
-fn pack_to_assets(temp_dir: &PathBuf, patched: &PathBuf, repack: RepackInfo) -> anyhow::Result<PathBuf> {
-    let output = temp_dir.join("repacked.assets");
+fn pack_to_assets(temp_dir: &PathBuf, game_dir: &PathBuf, repack: RepackInfo) -> anyhow::Result<()> {
+    let output = game_dir.join("sharedassets0.assets");
+    let patched = temp_dir.join("patched");
     let temp_art = temp_dir.join("patched-art.dat");
     pack::pack(&repack.art_key, &Some(patched.clone()), &temp_art)?;
     let assets = repack.assets;
@@ -174,13 +176,14 @@ fn pack_to_assets(temp_dir: &PathBuf, patched: &PathBuf, repack: RepackInfo) -> 
     header.file_size = header.offset_first_file + current_offset;
     let content = AssetsFileContent { objects, ..assets.content };
     let new_assets = AssetsFile { header, content };
+
     let mut writer = BufWriter::new(File::create(&output)
         .context("Failed to create output file")?);
     new_assets.write(&mut writer)
         .context("Failed to write assets file header")?;
 
     // pad with zeroes until first file offset is reached (yes this is also what Unity does)
-    let pad = assets.header.offset_first_file - writer.seek(SeekFrom::Current(0))
+    let pad = assets.header.offset_first_file - writer.stream_position()
         .context("Failed to get current position in output file")?;
     write_zeroes(&mut writer, pad)?;
 
@@ -220,5 +223,5 @@ fn pack_to_assets(temp_dir: &PathBuf, patched: &PathBuf, repack: RepackInfo) -> 
     }
 
     println!("Packed objects to: {}", output.display());
-    Ok(output)
+    Ok(())
 }
