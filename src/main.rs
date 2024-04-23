@@ -68,10 +68,10 @@ enum Command {
         #[arg(short, long, default_value = "./out")]
         output: PathBuf,
     },
-    /// Patch an Art.dat or unity asset bundle with new/replaced assets from a directory.
+    /// Patch the game files with new/replaced assets from a directory.
     Patch {
         /// Directory containing assets to insert/replace.
-        #[arg(short, long)]
+        #[arg(short, long, default_value = "./patch")]
         patch: PathBuf,
 
         /// How should the tool handle localized assets.
@@ -84,10 +84,8 @@ enum Command {
 enum I18nCompatMode {
     /// Everything is packed into the Art.dat file. Localized assets are ignored.
     None,
-    /// All i18n zip files get the same localized assets.
+    /// the en.zip i18n file is also processed to have the same localized assets as Art.dat.
     Normal,
-    /// The tool finds the delta between localized assets and overlays them onto the packed assets.
-    Smart,
 }
 
 
