@@ -24,7 +24,7 @@ pub fn revert(game_dir: &PathBuf) -> anyhow::Result<()> {
     let locale_bak = game_dir.join("StreamingAssets/loc/en.zip-bak");
     copy_backup(&locale, &locale_bak)?;
     
-    println!("Reverted game files in: {:?} to vanilla state", game_dir);
+    println!("Reverted game files to vanilla state");
 
     Ok(())
 }

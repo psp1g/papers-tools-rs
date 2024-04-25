@@ -63,8 +63,10 @@ fn find_input(input: &Option<PathBuf>) -> anyhow::Result<PathBuf> {
 }
 
 fn pack_dat(art_key: &String, input: &PathBuf, output: &PathBuf) -> anyhow::Result<()> {
+    println!("Packing assets...");
     let mut assets: Vec<AssetMetadata> = Vec::new();
     let mut asset_bytes: Vec<u8> = Vec::new();
+    let mut count = 0;
 
     for file in WalkDir::new(input) {
         let file = file.unwrap();
@@ -81,10 +83,10 @@ fn pack_dat(art_key: &String, input: &PathBuf, output: &PathBuf) -> anyhow::Resu
             name = format!("assets/{}", name);
         }
 
-        println!("Packing asset: {} ({} bytes)", name, size);
         assets.push(AssetMetadata { name, size });
 
         asset_bytes.extend_from_slice(&std::fs::read(path)?);
+        count += 1;
     }
 
     let header = haxeformat::to_string(&assets)?;
@@ -100,8 +102,8 @@ fn pack_dat(art_key: &String, input: &PathBuf, output: &PathBuf) -> anyhow::Resu
     let enc_key = enc_key.as_slice();
     crypto::encrypt(enc_key, out.as_mut_slice());
 
-    println!("Packing assets to: {}...", output.display());
     std::fs::write(output, out)?;
+    println!("Packed {} assets", count);
 
     Ok(())
 }

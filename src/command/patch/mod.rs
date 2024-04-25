@@ -24,13 +24,11 @@ pub fn patch(args: &NewArgs, patch: &PathBuf, locale_mode: &I18nCompatMode) -> a
     let game_files = prepare_game_files(&args.game_dir)?;
 
     let temp_dir = create_temp_dir();
-    println!("Using temp directory: {}", temp_dir.display());
     let temp_unpacked = temp_dir.join("unpacked");
     fs::create_dir_all(&temp_unpacked)
         .context("Failed to create temp directory")?;
     let repack_info = unpack::unpack_assets(args, &game_files.assets, &temp_unpacked)?;
 
-    patch_assets(patch, &temp_dir, &game_files.game_dir, repack_info)?;
     let patched_dir = patch_assets(patch, &temp_dir, &game_files.game_dir, repack_info)?;
 
     if locale_mode == &I18nCompatMode::Normal {

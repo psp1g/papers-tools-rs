@@ -224,6 +224,6 @@ fn pack_to_assets(temp_dir: &PathBuf, game_dir: &PathBuf, repack: RepackInfo) ->
         }
     }
 
-    println!("Packed objects to: {}", output.display());
+    println!("Packed {} objects", new_assets.content.objects.len());
     Ok(())
 }

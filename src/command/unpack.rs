@@ -57,8 +57,7 @@ pub fn unpack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::
 
     // Loop through assets in the data and write them to the output directory
     let mut index = len + 2;
-    for asset in assets {
-        println!("Unpacking asset: {} ({} bytes)", asset.name, asset.size);
+    for asset in &assets {
         let asset_bytes = &data[index..index + asset.size];
         index += asset.size;
 
@@ -74,6 +73,8 @@ pub fn unpack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::
         std::fs::write(path, asset_bytes)
             .context(format!("Failed to write asset {} to file", asset.name))?;
     }
+
+    println!("Unpacked {} assets", assets.len());
 
     Ok(())
 }

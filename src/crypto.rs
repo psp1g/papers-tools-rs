@@ -89,7 +89,7 @@ pub fn extract_key(args: &NewArgs) -> anyhow::Result<String> {
     let mut key = [0; 16];
     file.read_exact(&mut key)?;
     let key = String::from_utf8(key.to_vec())?;
-    println!("Extracted Art.dat decryption key from global metadata: {}", key);
+    println!("Extracted Art.dat decryption key from global metadata");
 
     Ok(key)
 }
