@@ -75,7 +75,7 @@ enum Command {
         patch: PathBuf,
 
         /// How should the tool handle localized assets.
-        #[arg(long, default_value = "none")]
+        #[arg(long, default_value = "normal")]
         i18n: I18nCompatMode,
     },
     /// Reverts the game files to their original state.
@@ -93,7 +93,7 @@ impl Command {
 
 }
 
-#[derive(Debug, Clone, ValueEnum)]
+#[derive(Debug, Clone, Eq, PartialEq, ValueEnum)]
 enum I18nCompatMode {
     /// Everything is packed into the Art.dat file. Localized assets are ignored.
     None,

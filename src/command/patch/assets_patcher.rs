@@ -29,7 +29,7 @@ pub fn patch_assets(
     temp_dir: &PathBuf,
     game_dir: &PathBuf,
     repack_info: RepackInfo,
-) -> anyhow::Result<()> {
+) -> anyhow::Result<PathBuf> { // patched assets directory
     println!("Patching assets..");
     let patched_assets = temp_dir.join("patched");
     let unpacked = temp_dir.join("unpacked");
@@ -104,7 +104,9 @@ pub fn patch_assets(
         }
     }
 
-    pack_to_assets(temp_dir, &game_dir, repack_info)
+    pack_to_assets(temp_dir, &game_dir, repack_info)?;
+
+    Ok(patched_assets)
 }
 
 /// Copies a file from one of the input directories to the patched assets directory and makes sure

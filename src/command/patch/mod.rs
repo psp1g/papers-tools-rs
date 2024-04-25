@@ -1,4 +1,5 @@
 use std::env::temp_dir;
+use std::fs;
 use std::path::PathBuf;
 
 use anyhow::Context;
@@ -6,10 +7,12 @@ use rand::random;
 
 use crate::{I18nCompatMode, NewArgs};
 use crate::command::patch::assets_patcher::patch_assets;
+use crate::command::patch::locale_patcher::patch_locale;
 use crate::command::unpack;
 
-pub mod assets_patcher;
-pub mod xml_patcher;
+mod assets_patcher;
+mod xml_patcher;
+mod locale_patcher;
 
 pub fn patch(args: &NewArgs, patch: &PathBuf, locale_mode: &I18nCompatMode) -> anyhow::Result<()> {
     println!("Patching assets with {:?} with locale mode {:?}", patch, locale_mode);
@@ -23,11 +26,19 @@ pub fn patch(args: &NewArgs, patch: &PathBuf, locale_mode: &I18nCompatMode) -> a
     let temp_dir = create_temp_dir();
     println!("Using temp directory: {}", temp_dir.display());
     let temp_unpacked = temp_dir.join("unpacked");
-    std::fs::create_dir_all(&temp_unpacked)
+    fs::create_dir_all(&temp_unpacked)
         .context("Failed to create temp directory")?;
     let repack_info = unpack::unpack_assets(args, &game_files.assets, &temp_unpacked)?;
 
     patch_assets(patch, &temp_dir, &game_files.game_dir, repack_info)?;
+    let patched_dir = patch_assets(patch, &temp_dir, &game_files.game_dir, repack_info)?;
+
+    if locale_mode == &I18nCompatMode::Normal {
+        patch_locale(&patched_dir, &game_files.game_dir)?;
+    }
+
+    println!("Cleaning up...");
+    fs::remove_dir_all(&temp_dir).context("Failed to remove temp directory")?;
 
     Ok(())
 }
@@ -74,7 +85,7 @@ fn prepare_file(game_dir: &PathBuf, name: &str) -> anyhow::Result<PathBuf> {
         anyhow::bail!("Couldn't find {} in game directory {:?}", name, game_dir);
     }
 
-    std::fs::copy(&file, &copy_file)
+    fs::copy(&file, &copy_file)
         .map_err(|e| anyhow::anyhow!("Failed to create backup of {}: {}", name, e))?;
 
     Ok(copy_file)
