@@ -1,11 +1,14 @@
-use std::io::{Read, Write};
-use anyhow::Context;
+use std::io::{Read, Seek, SeekFrom, Write};
 
+use anyhow::Context;
+use binrw::__private::write_zeroes;
 use byteorder::{BigEndian, ByteOrder, LittleEndian, ReadBytesExt, WriteBytesExt};
 
 use crate::unity::util::Endian;
 
 pub trait ReadExt {
+    fn align(&mut self, alignment: u64) -> anyhow::Result<()>;
+
     fn read_string(&mut self, len: usize) -> anyhow::Result<String>;
 
     fn read_u32_order(&mut self, endian: &Endian) -> anyhow::Result<u32>;
@@ -15,7 +18,17 @@ pub trait ReadExt {
     fn read_dyn_string(&mut self, endian: &Endian) -> anyhow::Result<String>;
 }
 
-impl<R: Read + ?Sized> ReadExt for R {
+impl<R: Read + ?Sized + Seek> ReadExt for R {
+    fn align(&mut self, alignment: u64) -> anyhow::Result<()> {
+        let pos = self.stream_position()?;
+        let rem = pos % alignment;
+        if rem != 0 {
+            let pad = alignment - rem;
+            self.seek(SeekFrom::Current(pad as i64)).context("Failed to align")?;
+        }
+        Ok(())
+    }
+
     fn read_string(&mut self, len: usize) -> anyhow::Result<String> {
         let mut buf = vec![0; len];
         self.read_exact(&mut buf)
@@ -46,19 +59,32 @@ impl<R: Read + ?Sized> ReadExt for R {
             Endian::Big => self.read_u32::<BigEndian>(),
         }? as usize;
 
-        self.read_string(size)
+        let str = self.read_string(size)?;
+        self.align(4)?;
+        
+        Ok(str)
     }
 }
 
 pub trait WriteExt {
+    fn align(&mut self, alignment: u64) -> anyhow::Result<()>;
 
     fn write_u32_order(&mut self, endian: &Endian, val: u32) -> anyhow::Result<()>;
 
     fn write_dyn_string(&mut self, s: &str, endian: &Endian) -> anyhow::Result<()>;
-
 }
 
-impl<W: Write + ?Sized> WriteExt for W {
+impl<W: Write + Seek> WriteExt for W {
+    fn align(&mut self, alignment: u64) -> anyhow::Result<()> {
+        let pos = self.stream_position()?;
+        let rem = pos % alignment;
+        if rem != 0 {
+            let pad = alignment - rem;
+            write_zeroes(self, pad).context("Failed to align")?;
+        }
+        Ok(())
+    }
+
     fn write_u32_order(&mut self, endian: &Endian, val: u32) -> anyhow::Result<()> {
         match endian {
             Endian::Little => self.write_u32::<LittleEndian>(val),
@@ -72,7 +98,7 @@ impl<W: Write + ?Sized> WriteExt for W {
             Endian::Little => self.write_u32::<LittleEndian>(size),
             Endian::Big => self.write_u32::<BigEndian>(size),
         }?;
-        self.write_all(s.as_bytes())
-            .context("Failed to write string")
+        self.write_all(s.as_bytes()).context("Failed to write string")?;
+        self.align(4)
     }
 }

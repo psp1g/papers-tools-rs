@@ -7,7 +7,6 @@ use anyhow::Context;
 use binrw::__private::write_zeroes;
 use binrw::BinWrite;
 use binrw::io::BufReader;
-use byteorder::WriteBytesExt;
 use walkdir::WalkDir;
 
 use crate::command::pack;
@@ -212,8 +211,6 @@ fn pack_to_assets(temp_dir: &PathBuf, game_dir: &PathBuf, repack: RepackInfo) ->
         } else {
             writer.write_dyn_string("Art.dat", &new_assets.header.endianness)
                 .context("Failed to write object name")?;
-            writer.write_u8(0)
-                .context("Failed to write field index")?;
             writer.write_u32_order(&new_assets.header.endianness, new_art_len as u32)
                 .context("Failed to write object data length")?;
             // copy over the new art file

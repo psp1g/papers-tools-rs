@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use binrw::io::BufReader;
-use zip::write::FileOptions;
+use zip::write::{ExtendedFileOptions, FileOptions};
 use zip::ZipArchive;
 
 pub fn patch_locale(patched: &PathBuf, game_dir: &PathBuf) -> anyhow::Result<()> {
@@ -29,7 +29,8 @@ pub fn patch_locale(patched: &PathBuf, game_dir: &PathBuf) -> anyhow::Result<()>
 
         if patch_file.exists() {
             // General assets, just copy the patched file
-            writer.start_file(name, FileOptions::default()).context("Failed to start file")?;
+            writer.start_file::<&str, ExtendedFileOptions>(name, FileOptions::default())
+                .context("Failed to start file")?;
             let mut patch_file = BufReader::new(File::open(patch_file)
                 .context("Failed to open patch file")?
             );
