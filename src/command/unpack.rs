@@ -137,7 +137,7 @@ pub fn unpack_assets(args: &NewArgs, input_path: &PathBuf, output: &PathBuf) -> 
                     .context("Failed to create temporary file")?;
                 let mut temp_writer = BufWriter::new(temp_writer);
 
-                let to_copy = input.read_u32_order(&assets.endian())
+                let to_copy = u32::read_options(&mut input, assets.endian(), ())
                     .context("Failed to read asset length")?;
                 let mut temp_reader = input.by_ref().take(to_copy as u64);
 
