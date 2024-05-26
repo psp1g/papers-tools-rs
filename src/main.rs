@@ -60,9 +60,9 @@ enum Command {
     },
     /// Unpack assets from an Art.dat or unity asset bundle.
     Unpack {
-        /// Input file. Can either be an Art.dat file or a unity asset bundle. Make sure to either use the .dat or .assets extension.
+        /// Input file. Can either be an Art.dat file or a unity asset bundle. Make sure to either use the .dat or .assets extension. Defaults to the sharedassets0.assets in the game directory.
         #[arg(short, long)]
-        input: PathBuf,
+        input: Option<PathBuf>,
 
         /// Output directory.
         #[arg(short, long, default_value = "./out")]
@@ -83,14 +83,12 @@ enum Command {
 }
 
 impl Command {
-
     fn needs_key(&self) -> bool {
         match self {
             Command::Revert => false,
             _ => true,
         }
     }
-
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, ValueEnum)]

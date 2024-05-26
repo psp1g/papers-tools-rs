@@ -13,7 +13,8 @@ use crate::io_ext::ReadExt;
 use crate::unity::AssetsFile;
 use crate::unity::util::{AlignedString, AlignmentArgs};
 
-pub fn unpack(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::Result<()> {
+pub fn unpack(args: &NewArgs, input: &Option<PathBuf>, output: &PathBuf) -> anyhow::Result<()> {
+    let input = &find_input(args, input)?;
     let extension = input.extension();
     match extension {
         Some(ext) => {
@@ -31,6 +32,29 @@ pub fn unpack(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::Resu
     }
 
     Ok(())
+}
+
+fn find_input(args: &NewArgs, input: &Option<PathBuf>) -> anyhow::Result<PathBuf> {
+    match input {
+        // Check if an input path was provided
+        Some(path) => {
+            if !path.is_file() {
+                anyhow::bail!("Input path is not a file");
+            }
+            Ok(path.clone())
+        }
+        None => {
+            let assets = args.game_dir
+                .join("PapersPlease_Data")
+                .join("sharedassets0.assets");
+
+            if assets.is_file() {
+                Ok(assets)
+            } else {
+                anyhow::bail!("No input file provided and no sharedassets0.assets file found in game directory");
+            }
+        }
+    }
 }
 
 pub fn unpack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::Result<()> {
