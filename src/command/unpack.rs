@@ -11,6 +11,7 @@ use crate::{crypto, NewArgs};
 use crate::command::ArtHeader;
 use crate::io_ext::ReadExt;
 use crate::unity::AssetsFile;
+use crate::unity::util::{AlignedString, AlignmentArgs};
 
 pub fn unpack(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::Result<()> {
     let extension = input.extension();
@@ -101,8 +102,8 @@ pub fn unpack_assets(args: &NewArgs, input_path: &PathBuf, output: &PathBuf) -> 
         if obj.class_id == 49 { // text asset
             input.seek(SeekFrom::Start(assets.header.offset_first_file + obj.byte_start))
                 .context("Failed to seek to object")?;
-            let name = input.read_dyn_string(&assets.header.endianness)
-                .context("Failed to read object name")?;
+            let name = AlignedString::read_options(&mut input, assets.endian(), AlignmentArgs::new(4))
+                .context("Failed to read object name")?.0;
 
             if name == "Art.dat" {
                 let temp = PathBuf::from("./temp-art.dat");
@@ -112,7 +113,7 @@ pub fn unpack_assets(args: &NewArgs, input_path: &PathBuf, output: &PathBuf) -> 
                     .context("Failed to create temporary file")?;
                 let mut temp_writer = BufWriter::new(temp_writer);
 
-                let to_copy = input.read_u32_order(&assets.header.endianness)
+                let to_copy = input.read_u32_order(&assets.endian())
                     .context("Failed to read asset length")?;
                 let mut temp_reader = input.by_ref().take(to_copy as u64);
 

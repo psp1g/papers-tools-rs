@@ -19,7 +19,7 @@ use crate::unity::{AssetsFile, AssetsFileContent, AssetsFileHeader, ObjectInfo};
 /// The header consists of:
 /// - 4 bytes for object name length
 /// - 7 bytes for object name (Art.dat)
-/// - 1 byte for field index
+/// - 1 byte for alignment to next 4-byte block
 /// - 4 bytes for data length
 const ART_OBJ_HEADER_LEN: u64 = 4 + 7 + 1 + 4;
 
@@ -160,10 +160,10 @@ fn pack_to_assets(temp_dir: &PathBuf, game_dir: &PathBuf, repack: RepackInfo) ->
         current_offset += new_object.byte_size as u64;
 
         // When writing the object data, the start of object data is always aligned to 8 bytes, and
-        // the end of object data is always aligned to 4 bytes (These pad after bytes are included
-        // in the object's byte size). However, if the distance to the next 8 byte alignment is the
-        // same as the distance to the next 4 byte alignment, the padding bytes are not included in
-        // the object's byte size.
+        // the end of object data is always aligned to 4 bytes. These bytes used for padding after
+        // the object data are included in the object's byte size However, if the distance to the
+        // next 8 byte alignment is the same as the distance to the next 4 byte alignment, the
+        // padding bytes are not included in the object's byte size.
         if current_offset % 8 != 0 {
             let padding = 8 - (current_offset % 8);
             if padding > 4 {

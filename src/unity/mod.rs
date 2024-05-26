@@ -1,4 +1,4 @@
-use binrw::{binrw, NullString};
+use binrw::{binrw, Endian as BinrwEndian, NullString};
 
 use crate::unity::util::{Endian, U8Bool};
 
@@ -15,7 +15,6 @@ pub struct AssetsFile {
 }
 
 impl AssetsFile {
-
     pub fn resolve_object_classes(&self) -> anyhow::Result<Vec<ResolvedObjectInfo>> {
         let types = &self.content.types;
         let mut out = Vec::new();
@@ -33,6 +32,9 @@ impl AssetsFile {
         return Ok(out);
     }
 
+    pub fn endian<T>(&self) -> T where Endian: Into<T> {
+        self.header.endianness.clone().into()
+    }
 }
 
 #[binrw]
@@ -85,7 +87,7 @@ pub struct SerializedType {
     pub class_id: i32,
     pub is_stripped_type: U8Bool,
     pub script_type_index: u16,
-    #[brw(if(class_id.clone() == 114))]
+    #[brw(if (class_id.clone() == 114))]
     pub script_id: Option<[u8; 16]>,
     pub old_type_hash: [u8; 16],
 }
