@@ -4,17 +4,20 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use rand::random;
+use unpack::unpack_assets;
 
-use crate::{I18nCompatMode, NewArgs};
+use crate::{I18nCompatMode, Args};
 use crate::command::patch::assets_patcher::patch_assets;
+use crate::command::patch::audio_patcher::patch_audio;
 use crate::command::patch::locale_patcher::patch_locale;
-use crate::command::unpack;
+use crate::command::{DATA_FOLDER_NAME, unpack};
 
 mod assets_patcher;
 mod xml_patcher;
 mod locale_patcher;
+pub mod audio_patcher;
 
-pub fn patch(args: &NewArgs, patch: &PathBuf, locale_mode: &I18nCompatMode) -> anyhow::Result<()> {
+pub fn patch(args: &Args, patch: &PathBuf, locale_mode: &I18nCompatMode) -> anyhow::Result<()> {
     println!("Patching assets with {:?} with locale mode {:?}", patch, locale_mode);
 
     if !patch.is_dir() {
@@ -27,8 +30,13 @@ pub fn patch(args: &NewArgs, patch: &PathBuf, locale_mode: &I18nCompatMode) -> a
     let temp_unpacked = temp_dir.join("unpacked");
     fs::create_dir_all(&temp_unpacked)
         .context("Failed to create temp directory")?;
-    let repack_info = unpack::unpack_assets(args, &game_files.assets, &temp_unpacked)?;
+    let audio_patches = patch.join("audio_patches.json");
+    let process_audio =  audio_patches.is_file();
 
+    let mut repack_info = unpack_assets(args, &game_files.assets, &temp_unpacked, process_audio)?;
+    if process_audio {
+        patch_audio(&audio_patches, &game_files.game_dir, &mut repack_info)?;
+    }
     let patched_dir = patch_assets(patch, &temp_dir, &game_files.game_dir, repack_info)?;
 
     if locale_mode == &I18nCompatMode::Normal {
@@ -41,7 +49,6 @@ pub fn patch(args: &NewArgs, patch: &PathBuf, locale_mode: &I18nCompatMode) -> a
     Ok(())
 }
 
-
 //<editor-fold desc="Filesystem preparations" defaultstate="collapsed">
 pub struct GameFiles {
     pub game_dir: PathBuf,
@@ -52,10 +59,10 @@ pub struct GameFiles {
 
 fn prepare_game_files(game_dir: &PathBuf) -> anyhow::Result<GameFiles> {
     // if game_dir is not already PapersPlease_Data, append it
-    let game_dir = if game_dir.ends_with("PapersPlease_Data") {
+    let game_dir = if game_dir.ends_with(DATA_FOLDER_NAME) {
         game_dir.clone()
     } else {
-        game_dir.join("PapersPlease_Data")
+        game_dir.join(DATA_FOLDER_NAME)
     };
 
     if !game_dir.is_dir() {

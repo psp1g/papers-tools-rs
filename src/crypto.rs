@@ -1,9 +1,9 @@
 use std::fs::File;
 use std::io::{Read, Seek};
-use std::path::Path;
 use std::slice;
 
-use crate::{NewArgs};
+use crate::command::DATA_FOLDER_NAME;
+use crate::Args;
 
 const KEY_OFFSET: usize = 0x39420;
 
@@ -70,12 +70,17 @@ fn as_u32_slice_mut(x: &mut [u8]) -> &mut [u32] {
     unsafe { slice::from_raw_parts_mut(x.as_mut_ptr() as *mut u32, x.len() / 4) }
 }
 
-pub fn extract_key(args: &NewArgs) -> anyhow::Result<String> {
-    let game_dir = Path::new(&args.game_dir);
+pub fn extract_key(args: &Args) -> anyhow::Result<String> {
+    let mut game_dir = args.game_dir.clone();
     if !game_dir.exists() || !game_dir.is_dir() {
         anyhow::bail!("Game directory not found: {}", game_dir.display());
     }
-    let global_metadata = game_dir.join("PapersPlease_Data")
+
+    if !game_dir.ends_with(DATA_FOLDER_NAME) {
+        game_dir.push(DATA_FOLDER_NAME);
+    }
+
+    let global_metadata = game_dir
         .join("il2cpp_data")
         .join("Metadata")
         .join("global-metadata.dat");

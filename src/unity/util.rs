@@ -1,10 +1,11 @@
+use std::fmt::{Display, Formatter};
 use std::io::{Read, Seek, Write};
 use std::ops::Deref;
 
 use binrw::{BinRead, BinResult, binrw, BinWrite, Endian as BinrwEndian, NamedArgs};
 use binrw::__private::write_zeroes;
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct U8Bool(pub bool);
 
 impl Deref for U8Bool {
@@ -129,4 +130,8 @@ impl BinRead for AlignedString {
         Ok(str)
     }
 
+}
+
+impl Display for AlignedString {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result { f.write_str(&self.0) }
 }

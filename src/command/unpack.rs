@@ -1,27 +1,28 @@
+use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::io::{BufWriter, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
-use anyhow::Context;
 
+use anyhow::Context;
 use binrw::BinRead;
 use binrw::io::BufReader;
 
-use crate::{crypto, NewArgs};
-use crate::command::ArtHeader;
-use crate::io_ext::ReadExt;
+use crate::{crypto, Args, unity};
+use crate::command::{ArtHeader, DATA_FOLDER_NAME};
 use crate::unity::AssetsFile;
+use crate::unity::audio::AudioClip;
 use crate::unity::util::{AlignedString, AlignmentArgs};
 
-pub fn unpack(args: &NewArgs, input: &Option<PathBuf>, output: &PathBuf) -> anyhow::Result<()> {
+pub fn unpack(args: &Args, input: &Option<PathBuf>, output: &PathBuf) -> anyhow::Result<()> {
     let input = &find_input(args, input)?;
     let extension = input.extension();
     match extension {
         Some(ext) => {
-            if ext == OsStr::new("dat") || ext ==  OsStr::new("txt") {
+            if ext == OsStr::new("dat") || ext == OsStr::new("txt") {
                 unpack_dat(args, input, output)?;
             } else if ext == OsStr::new("assets") {
-                unpack_assets(args, input, output)?;
+                unpack_assets(args, input, output, false)?;
             } else {
                 anyhow::bail!("Input file has an invalid extension. (Supported: .dat, .assets)");
             }
@@ -34,7 +35,7 @@ pub fn unpack(args: &NewArgs, input: &Option<PathBuf>, output: &PathBuf) -> anyh
     Ok(())
 }
 
-fn find_input(args: &NewArgs, input: &Option<PathBuf>) -> anyhow::Result<PathBuf> {
+fn find_input(args: &Args, input: &Option<PathBuf>) -> anyhow::Result<PathBuf> {
     match input {
         // Check if an input path was provided
         Some(path) => {
@@ -44,9 +45,11 @@ fn find_input(args: &NewArgs, input: &Option<PathBuf>) -> anyhow::Result<PathBuf
             Ok(path.clone())
         }
         None => {
-            let assets = args.game_dir
-                .join("PapersPlease_Data")
-                .join("sharedassets0.assets");
+            let mut assets = args.game_dir.clone();
+            if !assets.ends_with(DATA_FOLDER_NAME) {
+                assets.push(DATA_FOLDER_NAME);
+            }
+            assets.push("sharedassets0.assets");
 
             if assets.is_file() {
                 Ok(assets)
@@ -57,7 +60,7 @@ fn find_input(args: &NewArgs, input: &Option<PathBuf>) -> anyhow::Result<PathBuf
     }
 }
 
-pub fn unpack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::Result<()> {
+pub fn unpack_dat(args: &Args, input: &PathBuf, output: &PathBuf) -> anyhow::Result<()> {
     let mut data = std::fs::read(input)
         .context("Failed to read input file")?;
     println!("Unpacking assets from: {}", input.display());
@@ -106,12 +109,13 @@ pub fn unpack_dat(args: &NewArgs, input: &PathBuf, output: &PathBuf) -> anyhow::
 
 pub struct RepackInfo {
     pub assets: AssetsFile,
-    pub art_path_id: i64,
+    pub audio_assets: HashMap<i64, AudioClip>,
     pub art_key: String,
+    pub art_path_id: i64,
     pub original_assets: PathBuf,
 }
 
-pub fn unpack_assets(args: &NewArgs, input_path: &PathBuf, output: &PathBuf) -> anyhow::Result<RepackInfo> {
+pub fn unpack_assets(args: &Args, input_path: &PathBuf, output: &PathBuf, process_audio: bool) -> anyhow::Result<RepackInfo> {
     let input = File::open(input_path)
         .context("Failed to open input file")?;
     let mut input = BufReader::new(input);
@@ -122,8 +126,9 @@ pub fn unpack_assets(args: &NewArgs, input_path: &PathBuf, output: &PathBuf) -> 
 
     let mut art_file: Option<PathBuf> = None;
     let mut art_path_id: Option<i64> = None;
+    let mut audio_assets = HashMap::new();
     for obj in objects {
-        if obj.class_id == 49 { // text asset
+        if obj.class_id == unity::TEXT_ASSET_CLASS { // text asset
             input.seek(SeekFrom::Start(assets.header.offset_first_file + obj.byte_start))
                 .context("Failed to seek to object")?;
             let name = AlignedString::read_options(&mut input, assets.endian(), AlignmentArgs::new(4))
@@ -146,8 +151,17 @@ pub fn unpack_assets(args: &NewArgs, input_path: &PathBuf, output: &PathBuf) -> 
 
                 art_file = Some(temp);
                 art_path_id = Some(obj.path_id);
-                break;
+                if !process_audio {
+                    break;
+                }
             }
+        } else if process_audio && obj.class_id == unity::AUDIO_CLIP_CLASS {
+            input.seek(SeekFrom::Start(assets.header.offset_first_file + obj.byte_start))
+                .context("Failed to seek to object")?;
+
+            let audio_clip = AudioClip::read_options(&mut input, assets.endian(), ())
+                .context("Failed to read AudioClip object")?;
+            audio_assets.insert(obj.path_id, audio_clip);
         }
     }
 
@@ -160,6 +174,7 @@ pub fn unpack_assets(args: &NewArgs, input_path: &PathBuf, output: &PathBuf) -> 
         // Any unwraps here are safe because None values would've resulted in earlier bail
         Ok(RepackInfo {
             assets,
+            audio_assets,
             art_path_id: art_path_id.unwrap(),
             art_key: args.art_key.clone().unwrap(),
             original_assets: input_path.clone(),

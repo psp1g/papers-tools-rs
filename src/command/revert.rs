@@ -1,11 +1,12 @@
 use std::path::PathBuf;
+use crate::command::DATA_FOLDER_NAME;
 
 pub fn revert(game_dir: &PathBuf) -> anyhow::Result<()> {
     // if game_dir is not already PapersPlease_Data, append it
-    let game_dir = if game_dir.ends_with("PapersPlease_Data") {
+    let game_dir = if game_dir.ends_with(DATA_FOLDER_NAME) {
         game_dir.clone()
     } else {
-        game_dir.join("PapersPlease_Data")
+        game_dir.join(DATA_FOLDER_NAME)
     };
 
     if !game_dir.is_dir() {

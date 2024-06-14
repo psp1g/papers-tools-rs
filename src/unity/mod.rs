@@ -1,8 +1,12 @@
-use binrw::{binrw, Endian as BinrwEndian, NullString};
+use binrw::{binrw, NullString};
 
 use crate::unity::util::{Endian, U8Bool};
 
 pub mod util;
+pub mod audio;
+
+pub const TEXT_ASSET_CLASS: i32 = 49;
+pub const AUDIO_CLIP_CLASS: i32 = 83;
 
 #[binrw]
 #[brw(big)]

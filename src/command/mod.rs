@@ -8,6 +8,8 @@ pub struct AssetMetadata {
 
 pub type ArtHeader = Vec<AssetMetadata>;
 
+pub const DATA_FOLDER_NAME: &str = "PapersPlease_Data";
+
 pub mod pack;
 pub mod unpack;
 pub mod patch;

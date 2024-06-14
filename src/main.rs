@@ -6,32 +6,12 @@ use clap_derive::{Parser, Subcommand, ValueEnum};
 use crate::command::{pack, patch, revert, unpack};
 
 mod crypto;
-mod io_ext;
 mod command;
 mod unity;
 
 #[derive(Debug, Parser)]
-#[command(version, about = "Cli tool to work with Paper, please data files", long_about = None)]
-struct Args {
-    #[command(subcommand)]
-    command: Command,
-
-    #[arg(short, long, default_value = "Art.dat")]
-    input: String,
-
-    #[arg(short, long)]
-    game: String,
-
-    #[arg(short, long)]
-    output: Option<String>,
-
-    #[arg(short, long)]
-    key: Option<String>,
-}
-
-#[derive(Debug, Parser)]
 #[command(version, about = "Cli tool to work with Papers, Please data files", long_about = None)]
-struct NewArgs {
+struct Args {
     /// Subcommand to run
     #[command(subcommand)]
     command: Command,
@@ -101,7 +81,7 @@ enum I18nCompatMode {
 
 
 fn main() {
-    let mut args = NewArgs::parse();
+    let mut args = Args::parse();
     println!("papers-tools v{} by {}", env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_AUTHORS"));
     if args.art_key.is_none() && args.command.needs_key() {
         let res = crypto::extract_key(&args);

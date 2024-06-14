@@ -12,8 +12,8 @@ use walkdir::WalkDir;
 use crate::command::pack;
 use crate::command::patch::xml_patcher;
 use crate::command::unpack::RepackInfo;
-use crate::io_ext::WriteExt;
 use crate::unity::{AssetsFile, AssetsFileContent, AssetsFileHeader, ObjectInfo};
+use crate::unity::util::{AlignedString, AlignmentArgs};
 
 /// Length of the header of the Art.dat object.
 /// The header consists of:
@@ -201,23 +201,26 @@ fn pack_to_assets(temp_dir: &PathBuf, game_dir: &PathBuf, repack: RepackInfo) ->
             write_zeroes(&mut writer, pad).context("Failed to write padding zeroes")?;
         }
 
-        if obj.path_id != repack.art_path_id {
-            original.seek(SeekFrom::Start(original_file_offset + old_obj.byte_start))
-                .context("Failed to seek to object in original assets file")?;
-            let mut data = vec![0; obj.byte_size as usize];
-            original.read_exact(&mut data)
-                .context("Failed to read object data from original assets file")?;
-            writer.write_all(&data)?;
-        } else {
-            writer.write_dyn_string("Art.dat", &new_assets.header.endianness)
+        if obj.path_id == repack.art_path_id {
+            AlignedString("Art.dat".to_string()).write_options(&mut writer, new_assets.endian(), AlignmentArgs::new(4))
                 .context("Failed to write object name")?;
-            writer.write_u32_order(&new_assets.header.endianness, new_art_len as u32)
+            (new_art_len as u32).write_options(&mut writer, new_assets.endian(), ())
                 .context("Failed to write object data length")?;
             // copy over the new art file
             let mut art_file = BufReader::new(File::open(&temp_art)
                 .context("Failed to open temp art file")?);
             std::io::copy(&mut art_file, &mut writer)
                 .context("Failed to copy new art file to assets file")?;
+        } else if let Some(audio) = repack.audio_assets.get(&obj.path_id) {
+            audio.write_options(&mut writer, new_assets.endian(), ())
+                .context("Failed to write audio object")?;
+        } else {
+            original.seek(SeekFrom::Start(original_file_offset + old_obj.byte_start))
+                .context("Failed to seek to object in original assets file")?;
+            let mut data = vec![0; obj.byte_size as usize];
+            original.read_exact(&mut data)
+                .context("Failed to read object data from original assets file")?;
+            writer.write_all(&data)?;
         }
     }
 
