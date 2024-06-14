@@ -55,6 +55,7 @@ pub fn patch_audio(audio_patches_path: &PathBuf, game_dir: &PathBuf, repack_info
         .context("Failed to get parent directory of audio patches file")?;
 
     let mut offset = 0u64;
+    println!("Patching {} audio clips...", audio_patches.len());
     for patch in &audio_patches {
         if patch.patched_path.extension() != Some(OsStr::new("fsb")) {
             anyhow::bail!("Only FSB files are supported for audio patches.");
