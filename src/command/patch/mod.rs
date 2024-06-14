@@ -53,8 +53,6 @@ pub fn patch(args: &Args, patch: &PathBuf, locale_mode: &I18nCompatMode) -> anyh
 pub struct GameFiles {
     pub game_dir: PathBuf,
     pub assets: PathBuf,
-    pub resources: PathBuf,
-    pub locale: PathBuf,
 }
 
 fn prepare_game_files(game_dir: &PathBuf) -> anyhow::Result<GameFiles> {
@@ -70,10 +68,9 @@ fn prepare_game_files(game_dir: &PathBuf) -> anyhow::Result<GameFiles> {
     }
 
     let assets = prepare_file(&game_dir, "sharedassets0.assets")?;
-    let resources = prepare_file(&game_dir, "sharedassets0.resource")?;
-    let locale = prepare_file(&game_dir, "StreamingAssets/loc/en.zip")?;
+    let _ = prepare_file(&game_dir, "StreamingAssets/loc/en.zip")?;
 
-    Ok(GameFiles { game_dir, assets, resources, locale })
+    Ok(GameFiles { game_dir, assets})
 }
 
 fn prepare_file(game_dir: &PathBuf, name: &str) -> anyhow::Result<PathBuf> {

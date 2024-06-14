@@ -17,10 +17,6 @@ pub fn revert(game_dir: &PathBuf) -> anyhow::Result<()> {
     let assets_bak = game_dir.join("sharedassets0.assets-bak");
     copy_backup(&assets, &assets_bak)?;
 
-    let resources = game_dir.join("sharedassets0.resource");
-    let resources_bak = game_dir.join("sharedassets0.resource-bak");
-    copy_backup(&resources, &resources_bak)?;
-
     let locale = game_dir.join("StreamingAssets/loc/en.zip");
     let locale_bak = game_dir.join("StreamingAssets/loc/en.zip-bak");
     copy_backup(&locale, &locale_bak)?;
