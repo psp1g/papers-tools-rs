@@ -20,3 +20,8 @@ binrw = "0.13.3"
 rand = "0.8.5"
 roxmltree = "0.20.0"
 xml-rs = "0.8.20"
+
+[profile.release]
+strip = true
+opt-level = "z"
+lto = true
