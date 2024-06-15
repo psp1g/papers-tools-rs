@@ -80,7 +80,7 @@ fn pack_dat(art_key: &String, input: &PathBuf, output: &PathBuf) -> anyhow::Resu
             .to_string();
         let size = path.metadata()?.len() as usize;
         if !name.starts_with("assets/") {
-            name = format!("assets/{}", name);
+            name = format!("assets/{}", name.replace("\\", "/"));
         }
 
         assets.push(AssetMetadata { name, size });
