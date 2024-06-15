@@ -82,6 +82,10 @@ pub fn patch_assets(
         let file = file.map_err(|e| anyhow::anyhow!("Failed to walk directory: {}", e))?;
         let rel_path = file.path().strip_prefix(patch)
             .context("Failed to strip prefix")?;
+        if !rel_path.starts_with("assets") {
+            continue;
+        }
+
         let target = patched_assets.join(rel_path);
         let file_type = file.file_type();
 
