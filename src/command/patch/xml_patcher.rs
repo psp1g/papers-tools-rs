@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
 use std::io::BufWriter;
@@ -15,9 +16,14 @@ pub fn patch(original: &Path, patch: &PathBuf, output: &PathBuf) -> anyhow::Resu
         .context("Failed to parse patch XML")?;
     let mut patch_index = build_index(&patch_doc);
 
-    let original_content = fs::read_to_string(original)?;
-    let original_doc = Document::parse(&original_content)
+    let mut original_content = fs::read_to_string(original)
         .context("Failed to parse original XML")?;
+
+    if original.file_name() == Some(OsStr::new("Facts.xml")) {
+        original_content = original_content.replace("&&", "&amp;&amp;");
+    }
+
+    let original_doc = Document::parse(&original_content)?;
 
     let mut writer = EmitterConfig::new()
         .perform_indent(true)
