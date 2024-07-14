@@ -164,15 +164,12 @@ fn pack_to_assets(temp_dir: &PathBuf, game_dir: &PathBuf, repack: RepackInfo) ->
         current_offset += new_object.byte_size as u64;
 
         // When writing the object data, the start of object data is always aligned to 8 bytes, and
-        // the end of object data is always aligned to 4 bytes. These bytes used for padding after
-        // the object data are included in the object's byte size However, if the distance to the
-        // next 8 byte alignment is the same as the distance to the next 4 byte alignment, the
-        // padding bytes are not included in the object's byte size.
+        // the end of object data is always aligned to 4 bytes. The bytes used to pad the end of the
+        // object data to the next 4-byte boundary are included in the object's byte size. The bytes
+        // used to align the start of the object data to 8 bytes are not included in any size.
         if current_offset % 8 != 0 {
             let padding = 8 - (current_offset % 8);
-            if padding > 4 {
-                new_object.byte_size += (padding % 4) as u32;
-            }
+            new_object.byte_size += (padding % 4) as u32;
             current_offset += padding;
         }
 

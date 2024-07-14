@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs;
-use std::fs::File;
-use std::io::BufWriter;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
@@ -18,8 +16,9 @@ pub fn patch(original: &Path, patch: &PathBuf, output: &PathBuf) -> anyhow::Resu
 
     let mut original_content = fs::read_to_string(original)
         .context("Failed to parse original XML")?;
+    let needs_fix = original.file_name() == Some(OsStr::new("Facts.xml"));
 
-    if original.file_name() == Some(OsStr::new("Facts.xml")) {
+    if needs_fix {
         original_content = original_content.replace("&&", "&amp;&amp;");
     }
 
@@ -27,13 +26,19 @@ pub fn patch(original: &Path, patch: &PathBuf, output: &PathBuf) -> anyhow::Resu
 
     let mut writer = EmitterConfig::new()
         .perform_indent(true)
-        .create_writer(BufWriter::new(File::create(output).context("Failed to create output file")?));
+        .create_writer(Vec::with_capacity(original_content.len()));
 
     if let Some(first) = original_doc.root().first_element_child() {
         merge_to(&mut writer, first, &mut patch_index)
             .with_context(|| format!("Failed to patch {} with {}", original.display(), patch.display()))?;
+        if needs_fix {
+            let content = String::from_utf8(writer.into_inner())?.replace("&amp;&amp;", "&&");
+            fs::write(output, content).context("Failed to write to output file")?
+        } else {
+            fs::write(output, writer.into_inner()).context("Failed to write to output file")?
+        }
     }
-    
+
     Ok(())
 }
 
@@ -46,7 +51,7 @@ fn build_index<'doc, 'input: 'doc>(
     let mut index = HashMap::new();
     for node in doc.descendants() {
         if node.is_element() {
-            if let Some(id) = get_id(&node) {
+            if let Some(id) = get_id(&node, true) {
                 let path = get_node_path(&node, false);
                 let map = index.entry(path.clone()).or_insert_with(HashMap::new);
                 map.insert(id, node);
@@ -56,18 +61,40 @@ fn build_index<'doc, 'input: 'doc>(
     index
 }
 
-fn get_id(node: &Node) -> Option<String> {
-    if node.attributes().count() == 0 {
+fn get_id(node: &Node, is_index: bool) -> Option<String> {
+    if !node.is_element() {
         return None;
-    } else if let Some(id) = node.attribute("id") {
-        Some(id.to_string())
-    } else {
-        let name = node.tag_name().name();
-        let attrs = node.attributes()
-            .map(|a| format!("{}={}", a.name(), a.value()))
-            .collect::<Vec<_>>()
-            .join(",");
-        Some(format!("{}[{}]", name, attrs))
+    }
+
+    match node.tag_name().name() {
+        "paper" => {
+            let id = node.attribute("id").unwrap();
+            let nation = node.attribute("nation").unwrap_or("");
+            Some(format!("pa#{id}#{nation}"))
+        }
+        "purpose" => {
+            let val = node.attribute("val").unwrap().to_string();
+            Some(format!("pr#{val}"))
+        }
+        &_ => {
+            let name = node.tag_name().name();
+            if node.attributes().count() == 0 {
+                if !is_index {
+                    Some(format!("{name}#override"))
+                } else {
+                    None
+                }
+            } else if let Some(id) = node.attribute("id") {
+                let id = id.to_string();
+                Some(format!("{name}#{id}"))
+            } else {
+                let attrs = node.attributes()
+                    .map(|a| format!("{}={}", a.name(), a.value()))
+                    .collect::<Vec<_>>()
+                    .join(",");
+                Some(format!("{}[{}]", name, attrs))
+            }
+        }
     }
 }
 
@@ -91,11 +118,11 @@ fn get_node_path(node: &Node, incl_self: bool) -> String {
 }
 
 fn merge_to(
-    writer: &mut EventWriter<BufWriter<File>>,
+    writer: &mut EventWriter<Vec<u8>>,
     node: Node,
     patch_index: &mut NodeIndex,
 ) -> anyhow::Result<()> {
-    let id = get_id(&node);
+    let id = get_id(&node, false);
 
     // if the node has an id, check if there are any patches for it
     if let Some(id) = id {
@@ -114,10 +141,12 @@ fn merge_to(
             }
         }
 
-        // this node has an id, but no patch, so write the original node and process the child nodes
-        write_node(writer, &node)
-            .context(format!("Failed to write node: {}", id))?;
-        return Ok(());
+        if node.attributes().len() > 0 {
+            // this node has an id, but no patch, so write the original node and process the child nodes
+            write_node(writer, &node)
+                .context(format!("Failed to write node: {}", id))?;
+            return Ok(());
+        }
     }
 
     // this node doesn't have an id, so write the tag and process the child nodes
@@ -152,10 +181,13 @@ fn merge_to(
 }
 
 
-fn write_node(writer: &mut EventWriter<BufWriter<File>>, node: &Node) -> anyhow::Result<()> {
+fn write_node(writer: &mut EventWriter<Vec<u8>>, node: &Node) -> anyhow::Result<()> {
     if node.is_element() {
         let mut element = XmlEvent::start_element(node.tag_name().name());
         for attr in node.attributes() {
+            if attr.name() == "id" && attr.value() == "override" {
+                continue;
+            }
             element = element.attr(attr.name(), attr.value());
         }
         writer.write(element)?;
@@ -165,6 +197,8 @@ fn write_node(writer: &mut EventWriter<BufWriter<File>>, node: &Node) -> anyhow:
                 write_node(writer, &child)?;
             } else if child.is_text() {
                 writer.write(XmlEvent::characters(child.text().unwrap()))?;
+            } else if child.is_comment() {
+                writer.write(XmlEvent::comment(child.text().unwrap()))?;
             }
         }
 
