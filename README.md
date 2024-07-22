@@ -10,9 +10,10 @@ You can also pass the Art.dat file as the input directly.
 
 ## Patching 
 
-To overwrite textures, just put the new texture in the same path as the original one, with the same name. For example,
+To overwrite textures, just add the new texture in the same path as the original one in your patch directory. For example,
 to replace the `RifleTranq.png` texture, put the new texture in `patch/assets/textures/RifleTranq.png`.  
-Editing xml files is also supported. The tool will merge your changes with the original file. Example for adding a new
+
+Editing xml files is also supported. The tool will merge your changes with the original game xml files. Example for adding a new
 paper (`patch/assets/data/Papers.xml`):
 
 ```xml
@@ -24,9 +25,22 @@ paper (`patch/assets/data/Papers.xml`):
 </papers>
 ```
 
+To override entire sections that don't have an id or attributes, add `id="override"` to the base element:
+
+```xml
+<?xml version="1.0" encoding="UTF-8" ?>
+<facts>
+    <nations id="override">
+        <nation name="Thalvoria" cities="Ebonvale;Aerofell;Silvanwood" citizen="Thalvorian"/>
+        <nation name="Vectis" cities="Nexaria;Azurea;Agrona" citizen="Vectisan"/>
+    </nations>
+</facts>
+```
+
 for more information on the format, just check out the unpacked files.  
-Replacing audio files is also supported, but a separate json file is needed to map the original audio file to the new 
-one. Example (json path: `patch/audio_patches.json` audio path: `patch/audio/awp.fsb`):
+
+You can even replace audio files, but a separate json file is needed to map the original audio asset object to the new one.  
+Example (json path: `patch/audio_patches.json` audio path: `patch/audio/awp.fsb`):
 
 ```json
 [
@@ -48,15 +62,15 @@ one. Example (json path: `patch/audio_patches.json` audio path: `patch/audio/awp
 ]
 ```
 
-Please note that the audio files need to be unity compatible fmod sound banks. Any other format will not work.
+**The audio files need to be unity compatible fmod sound banks. Any other format will not work.**
 
 To apply the patch, run:
 
 ```bash
-./papers-tools -g /path/to/steamapps/common/PapersPlease patch -p patch
+./papers-tools -g /path/to/steamapps/common/PapersPlease patch -p /path/to/patch
 ```
 
-`-p patch` can be omitted if the patch is in the default path `patch`.
+`-p /path/to/patch` can be omitted if the patch is in the default path `./patch`.
 
 ## Reverting
 
