@@ -2,7 +2,8 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use clap_derive::{Parser, Subcommand, ValueEnum};
-
+use tracing::{error, info};
+use tracing_subscriber::fmt::time::OffsetTime;
 use crate::command::{pack, patch, revert, unpack};
 
 mod crypto;
@@ -81,12 +82,25 @@ enum I18nCompatMode {
 
 
 fn main() {
+    tracing_subscriber::fmt()
+        .compact()
+        .with_level(true)
+        .with_target(false)
+        .with_thread_ids(false)
+        .with_thread_names(false)
+        .with_file(false)
+        .with_line_number(false)
+        .with_timer(OffsetTime::new(
+            time::UtcOffset::current_local_offset().unwrap_or_else(|_| time::UtcOffset::UTC),
+            time::format_description::parse("[hour]:[minute]:[second]").unwrap(),
+        ))
+        .init();
     let mut args = Args::parse();
-    println!("papers-tools v{} by {}", env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_AUTHORS"));
+    info!("papers-tools v{} by {}", env!("CARGO_PKG_VERSION"), env!("CARGO_PKG_AUTHORS"));
     if args.art_key.is_none() && args.command.needs_key() {
         let res = crypto::extract_key(&args);
         if let Err(err) = res {
-            eprintln!("Failed to extract key: {}", err);
+            error!("Failed to extract key: {}", err);
             return;
         }
         args.art_key = Some(res.unwrap());
@@ -109,7 +123,7 @@ fn main() {
     };
 
     if let Err(err) = res {
-        eprintln!("An error occurred while running the command:");
-        eprintln!("{err}");
+        error!("An error occurred while running the command:");
+        error!("{err}");
     }
 }

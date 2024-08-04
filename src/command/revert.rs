@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use tracing::info;
 use crate::command::DATA_FOLDER_NAME;
 
 pub fn revert(game_dir: &PathBuf) -> anyhow::Result<()> {
@@ -20,8 +21,8 @@ pub fn revert(game_dir: &PathBuf) -> anyhow::Result<()> {
     let locale = game_dir.join("StreamingAssets/loc/en.zip");
     let locale_bak = game_dir.join("StreamingAssets/loc/en.zip-bak");
     copy_backup(&locale, &locale_bak)?;
-    
-    println!("Reverted game files to vanilla state");
+
+    info!("Reverted game files to vanilla state");
 
     Ok(())
 }

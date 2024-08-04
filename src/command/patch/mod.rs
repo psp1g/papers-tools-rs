@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use rand::random;
+use tracing::info;
 use unpack::unpack_assets;
 
 use crate::{I18nCompatMode, Args};
@@ -18,7 +19,7 @@ mod locale_patcher;
 pub mod audio_patcher;
 
 pub fn patch(args: &Args, patch: &PathBuf, locale_mode: &I18nCompatMode) -> anyhow::Result<()> {
-    println!("Patching assets with {:?} with locale mode {:?}", patch, locale_mode);
+    info!("Patching assets with {:?} with locale mode {:?}", patch, locale_mode);
 
     if !patch.is_dir() {
         anyhow::bail!("Patch directory {:?} does not exist", patch);
@@ -43,7 +44,7 @@ pub fn patch(args: &Args, patch: &PathBuf, locale_mode: &I18nCompatMode) -> anyh
         patch_locale(&patched_dir, &game_files.game_dir)?;
     }
 
-    println!("Cleaning up...");
+    info!("Cleaning up...");
     fs::remove_dir_all(&temp_dir).context("Failed to remove temp directory")?;
 
     Ok(())

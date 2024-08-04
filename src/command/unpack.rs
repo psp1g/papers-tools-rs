@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Context;
 use binrw::BinRead;
 use binrw::io::BufReader;
-
+use tracing::{info, warn};
 use crate::{crypto, Args, unity};
 use crate::command::{ArtHeader, DATA_FOLDER_NAME};
 use crate::unity::AssetsFile;
@@ -63,7 +63,7 @@ fn find_input(args: &Args, input: &Option<PathBuf>) -> anyhow::Result<PathBuf> {
 pub fn unpack_dat(args: &Args, input: &PathBuf, output: &PathBuf) -> anyhow::Result<()> {
     let mut data = std::fs::read(input)
         .context("Failed to read input file")?;
-    println!("Unpacking assets from: {}", input.display());
+    info!("Unpacking assets from: {}", input.display());
 
     // key can be unwrapped safely here
     let key = args.art_key.clone().unwrap();
@@ -93,7 +93,7 @@ pub fn unpack_dat(args: &Args, input: &PathBuf, output: &PathBuf) -> anyhow::Res
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
             if !parent.canonicalize()?.starts_with(&abs_output) {
-                eprintln!("Skipping asset: {} (Tried escaping output directory)", asset.name);
+                warn!("Skipping asset: {} (Tried escaping output directory)", asset.name);
                 continue;
             }
         }
@@ -102,7 +102,7 @@ pub fn unpack_dat(args: &Args, input: &PathBuf, output: &PathBuf) -> anyhow::Res
             .context(format!("Failed to write asset {} to file", asset.name))?;
     }
 
-    println!("Unpacked {} assets", assets.len());
+    info!("Unpacked {} assets", assets.len());
 
     Ok(())
 }
@@ -136,7 +136,7 @@ pub fn unpack_assets(args: &Args, input_path: &PathBuf, output: &PathBuf, proces
 
             if name == "Art.dat" {
                 let temp = PathBuf::from("./temp-art.dat");
-                println!("Found Art.dat in unity assets. Temporarily saving to: {}", temp.display());
+                info!("Found Art.dat in unity assets. Temporarily saving to: {}", temp.display());
 
                 let temp_writer = File::create(&temp)
                     .context("Failed to create temporary file")?;
@@ -167,9 +167,9 @@ pub fn unpack_assets(args: &Args, input_path: &PathBuf, output: &PathBuf, proces
 
     if let Some(art_file) = art_file {
         unpack_dat(args, &art_file, output)?;
-        println!("Removing temporary file: {}", art_file.display());
+        info!("Removing temporary file: {}", art_file.display());
         if let Err(e) = std::fs::remove_file(art_file) {
-            eprintln!("Failed to remove temporary file: {}", e);
+            warn!("Failed to remove temporary file: {}", e);
         }
         // Any unwraps here are safe because None values would've resulted in earlier bail
         Ok(RepackInfo {

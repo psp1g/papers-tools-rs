@@ -7,6 +7,7 @@ use anyhow::Context;
 use binrw::__private::write_zeroes;
 use binrw::BinWrite;
 use binrw::io::BufReader;
+use tracing::info;
 use walkdir::WalkDir;
 
 use crate::command::pack;
@@ -29,7 +30,7 @@ pub fn patch_assets(
     game_dir: &PathBuf,
     repack_info: RepackInfo,
 ) -> anyhow::Result<PathBuf> { // patched assets directory
-    println!("Patching assets..");
+    info!("Patching assets..");
     let patched_assets = temp_dir.join("patched");
     let unpacked = temp_dir.join("unpacked");
     std::fs::create_dir_all(&patched_assets)
@@ -67,10 +68,10 @@ pub fn patch_assets(
         // copy over the patch file if it's a png, csv or txt file
         // TODO: csv and txt patching
         if ext == OsStr::new("png") || ext == OsStr::new("csv") || ext == OsStr::new("txt") {
-            println!("Copying patch file for: {}", rel_path.display());
+            info!("Copying patch file for: {}", rel_path.display());
             copy_file(&patch_file.as_path(), rel_path, &patched_assets)?;
         } else if ext == OsStr::new("xml") || ext == OsStr::new("fnt") {
-            println!("Patching xml file: {}", rel_path.display());
+            info!("Patching xml file: {}", rel_path.display());
             patch_xml(&file.path(), &patch_file, rel_path, &patched_assets)?;
         } else {
             anyhow::bail!("Unsupported file type: {}", patch_file.display());
@@ -102,7 +103,7 @@ pub fn patch_assets(
 
         // copy over the file if it doesn't exist already
         if !target.exists() {
-            println!("Adding new file: {}", rel_path.display());
+            info!("Adding new file: {}", rel_path.display());
             copy_file(&file.path(), rel_path, &patched_assets)?;
         }
     }
@@ -225,6 +226,6 @@ fn pack_to_assets(temp_dir: &PathBuf, game_dir: &PathBuf, repack: RepackInfo) ->
         }
     }
 
-    println!("Packed {} objects", new_assets.content.objects.len());
+    info!("Packed {} objects", new_assets.content.objects.len());
     Ok(())
 }

@@ -4,12 +4,13 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use binrw::io::BufReader;
+use tracing::info;
 use zip::{CompressionMethod, ZipArchive};
 use zip::write::{ExtendedFileOptions, FileOptions};
 
 pub fn patch_locale(patched: &PathBuf, game_dir: &PathBuf) -> anyhow::Result<()> {
     let patched = patched.join("assets");
-    println!("Patching en.zip...");
+    info!("Patching en.zip...");
 
     let input = BufReader::new(File::open(game_dir.join("StreamingAssets/loc/en.zip-bak"))
         .context("Failed to open en.zip-bak")?
@@ -43,7 +44,7 @@ pub fn patch_locale(patched: &PathBuf, game_dir: &PathBuf) -> anyhow::Result<()>
 
     writer.finish().context("Failed to finish writing")?;
 
-    println!("Patched en.zip locale with {} entries", zip.len());
+    info!("Patched en.zip locale with {} entries", zip.len());
 
     Ok(())
 }

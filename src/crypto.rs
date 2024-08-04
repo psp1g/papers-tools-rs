@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::{Read, Seek};
 use std::slice;
-
+use tracing::info;
 use crate::command::DATA_FOLDER_NAME;
 use crate::Args;
 
@@ -94,7 +94,7 @@ pub fn extract_key(args: &Args) -> anyhow::Result<String> {
     let mut key = [0; 16];
     file.read_exact(&mut key)?;
     let key = String::from_utf8(key.to_vec())?;
-    println!("Extracted Art.dat decryption key from global metadata");
+    info!("Extracted Art.dat decryption key from global metadata");
 
     Ok(key)
 }

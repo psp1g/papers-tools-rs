@@ -2,6 +2,7 @@ use std::ffi::OsStr;
 use std::path::PathBuf;
 
 use anyhow::Context;
+use tracing::{info, warn};
 use walkdir::WalkDir;
 
 use crate::command::AssetMetadata;
@@ -63,7 +64,7 @@ fn find_input(input: &Option<PathBuf>) -> anyhow::Result<PathBuf> {
 }
 
 fn pack_dat(art_key: &String, input: &PathBuf, output: &PathBuf) -> anyhow::Result<()> {
-    println!("Packing assets...");
+    info!("Packing assets...");
     let mut assets: Vec<AssetMetadata> = Vec::new();
     let mut asset_bytes: Vec<u8> = Vec::new();
     let mut count = 0;
@@ -94,7 +95,7 @@ fn pack_dat(art_key: &String, input: &PathBuf, output: &PathBuf) -> anyhow::Resu
     let mut out = Vec::new();
     let header_len = header.len() as i32;
     if header_len > i16::MAX as i32 {
-        println!("!!! Header length {header_len} exceeds 2^15-1. This assets file will only work with a modded game !!!");
+        warn!("!!! Header length {} exceeds {}. This assets file will only work with a modded game !!!", header_len, i16::MAX);
         let len_one = (header_len & 0xFFFF) as u16;
         // set sign bit to 1 as a marker for the modded readInt16 to read 4 bytes instead of 2
         let len_two = ((header_len >> 16) as u16) | 0x8000;
@@ -106,14 +107,14 @@ fn pack_dat(art_key: &String, input: &PathBuf, output: &PathBuf) -> anyhow::Resu
     out.append(&mut header);
     out.append(&mut asset_bytes);
 
-    println!("Encrypting assets...");
+    info!("Encrypting assets...");
     let key = art_key.clone();
     let enc_key = crypto::to_key_array(key.as_str());
     let enc_key = enc_key.as_slice();
     crypto::encrypt(enc_key, out.as_mut_slice());
 
     std::fs::write(output, out)?;
-    println!("Packed {} assets", count);
+    info!("Packed {} assets", count);
 
     Ok(())
 }
