@@ -92,7 +92,17 @@ fn pack_dat(art_key: &String, input: &PathBuf, output: &PathBuf) -> anyhow::Resu
     let header = haxeformat::to_string(&assets)?;
     let mut header = header.into_bytes();
     let mut out = Vec::new();
-    out.extend_from_slice((header.len() as u16).to_le_bytes().as_ref());
+    let header_len = header.len() as i32;
+    if header_len > i16::MAX as i32 {
+        println!("!!! Header length {header_len} exceeds 2^15-1. This assets file will only work with a modded game !!!");
+        let len_one = (header_len & 0xFFFF) as u16;
+        // set sign bit to 1 as a marker for the modded readInt16 to read 4 bytes instead of 2
+        let len_two = ((header_len >> 16) as u16) | 0x8000;
+        out.extend_from_slice(len_two.to_le_bytes().as_ref());
+        out.extend_from_slice(len_one.to_le_bytes().as_ref());
+    } else {
+        out.extend_from_slice((header.len() as u16).to_le_bytes().as_ref());
+    }
     out.append(&mut header);
     out.append(&mut asset_bytes);
 
