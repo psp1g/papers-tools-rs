@@ -30,7 +30,7 @@ pub fn patch_locale(patched: &PathBuf, game_dir: &PathBuf) -> anyhow::Result<()>
 
         if patch_file.exists() {
             // General assets, just copy the patched file
-            writer.start_file::<&str, ExtendedFileOptions, &str>(name, FileOptions::default().compression_method(CompressionMethod::Stored))
+            writer.start_file::<&str, ExtendedFileOptions>(name, FileOptions::default().compression_method(CompressionMethod::Stored))
                 .context("Failed to start file")?;
             let mut patch_file = BufReader::new(File::open(patch_file)
                 .context("Failed to open patch file")?
